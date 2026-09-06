@@ -145,28 +145,54 @@ for name, command in [
     check(name, run_gate("destructive_bash.py", bash(command)) is None)
 
 print("\n== no_orphan_files ==")
-# NOT tempfile.mkdtemp() here: the system temp directory is one of the paths this
-# gate ignores on purpose, so a test run from there would pass for the wrong
-# reason — it would prove the exemption works, not the gate. The workspace is
-# created next to the tests instead.
+# The suite must give the same result wherever the repository happens to sit.
+# It did not: run from a checkout inside the system temp directory, every case
+# here failed, because `temp` is one of the default exemptions and the whole
+# tree was therefore exempt. The test was reading its own location as a verdict.
+# So it declares its own exemption list instead of inheriting the environment's.
 tmp = os.path.join(TESTS, "_workspace")
 shutil.rmtree(tmp, ignore_errors=True)
 os.makedirs(tmp, exist_ok=True)
 try:
+    home = os.path.join(tmp, "home")
+    os.makedirs(os.path.join(home, ".claude", "memory-hooks"), exist_ok=True)
+    with open(os.path.join(home, ".claude", "memory-hooks", "config.json"),
+              "w", encoding="utf-8") as fh:
+        json.dump({"gates": {"no_orphan_files": {
+            "extensions": [".py"],
+            "ignore": ["scratch", "node_modules"],
+            "search_roots": [tmp]}}}, fh)
+    env = dict(os.environ)
+    env["HOME"] = home
+    env["USERPROFILE"] = home
+
     check("a new code file is interrupted once",
           run_gate("no_orphan_files.py",
-                   write(os.path.join(tmp, "helper_service.py"))) == "deny")
+                   write(os.path.join(tmp, "helper_service.py")), env) == "deny")
     existing = os.path.join(tmp, "already_here.py")
     open(existing, "w").close()
     check("an existing file is not a new piece",
-          run_gate("no_orphan_files.py", write(existing)) is None)
+          run_gate("no_orphan_files.py", write(existing), env) is None)
     check("a note is not code",
           run_gate("no_orphan_files.py",
-                   write(os.path.join(tmp, "notes.md"))) is None)
+                   write(os.path.join(tmp, "notes.md")), env) is None)
     scratch = os.path.join(tmp, "scratch", "throwaway.py")
     os.makedirs(os.path.dirname(scratch), exist_ok=True)
-    check("scratch space is exempt",
-          run_gate("no_orphan_files.py", write(scratch)) is None)
+    check("an exempt directory is exempt",
+          run_gate("no_orphan_files.py", write(scratch), env) is None)
+
+    # The exemption must match a whole path SEGMENT, never a substring. This case
+    # exists because the suite failed exactly here when run from a checkout
+    # living under a folder named "scratchpad": the word "scratch" matched inside
+    # it and the gate was silently off for that entire tree.
+    lookalike = os.path.join(tmp, "scratchpad_project", "service.py")
+    os.makedirs(os.path.dirname(lookalike), exist_ok=True)
+    check("a folder merely CONTAINING an exempt word is still gated",
+          run_gate("no_orphan_files.py", write(lookalike), env) == "deny")
+    nested = os.path.join(tmp, "app", "node_modules_backup", "x.py")
+    os.makedirs(os.path.dirname(nested), exist_ok=True)
+    check("'node_modules_backup' is not 'node_modules'",
+          run_gate("no_orphan_files.py", write(nested), env) == "deny")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

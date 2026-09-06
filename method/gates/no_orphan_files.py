@@ -66,13 +66,40 @@ def config():
             tuple(cfg.get("search_roots") or (".",)))
 
 
+def is_ignored(path, ignore):
+    """True when the path sits inside an exempt directory.
+
+    A bare name matches a whole PATH SEGMENT, never a substring. That
+    distinction is the difference between a working gate and one that is
+    silently off: matching substrings, the exemption for `scratch` also
+    exempted every path containing the word — a folder named `scratchpad`
+    anywhere in the path disabled the gate entirely, and nothing said so.
+    Found by running the suite from a checkout that happened to live under
+    such a folder.
+
+    A fragment containing a slash is still matched as a sub-path, so you can
+    write `src/generated` and mean it.
+    """
+    normalised = path.replace("\\", "/").lower()
+    segments = [s for s in normalised.split("/") if s]
+    for fragment in ignore:
+        frag = fragment.replace("\\", "/").strip("/").lower()
+        if not frag:
+            continue
+        if "/" in frag:
+            if ("/" + frag + "/") in ("/" + "/".join(segments) + "/"):
+                return True
+        elif frag in segments:
+            return True
+    return False
+
+
 def is_gated(path, extensions, ignore):
     if not path:
         return False
-    low = path.replace("\\", "/").lower()
-    if any(frag.replace("\\", "/").lower() in low for frag in ignore):
+    if is_ignored(path, ignore):
         return False
-    return low.endswith(tuple(e.lower() for e in extensions))
+    return path.lower().endswith(tuple(e.lower() for e in extensions))
 
 
 def similar_names(path, roots, limit=6):
