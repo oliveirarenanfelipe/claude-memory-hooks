@@ -19,13 +19,16 @@ jobs:
           python-version: ${{ matrix.python }}
 
       # No install step on purpose: this project has no dependencies.
-      - name: Unit tests
-        run: python tests/test_memory.py
+      - name: Engine unit tests
+        run: python engine/tests/test_memory.py
 
       - name: Recall gate
-        run: python tests/golden_recall.py
+        run: python engine/tests/golden_recall.py
 
-      # A gate that has only ever passed is not evidence. This step breaks the
-      # index on purpose and fails if the gate does not notice.
-      - name: Gate mutation
-        run: python tests/golden_recall.py --mutate
+      # A gate that has only ever passed is not evidence. These two steps break
+      # things on purpose and fail if the checks do not notice.
+      - name: Recall gate mutation
+        run: python engine/tests/golden_recall.py --mutate
+
+      - name: Method gates, including mutation
+        run: python method/gates/tests/test_gates.py

@@ -1,0 +1,14 @@
+{
+  "language": "en",
+  "project_roots": [
+    "C:/demo/code"
+  ],
+  "layers": [
+    {
+      "name": "handbook",
+      "path": "C:\\Users\\olive\\Projeto\\Personal\\claude-memory-hooks\\engine\\tests\\fixtures\\claude_home\\handbook",
+      "mode": "flat",
+      "scope": "global"
+    }
+  ]
+}

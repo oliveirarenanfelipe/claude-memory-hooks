@@ -1,54 +1,37 @@
 # claude-memory-hooks
 
-> Claude Code remembers. No server, no database, no API key, no dependencies.
+> Claude Code remembers, and works the way you decided it should.
+> No server, no database, no API key, no dependencies.
 
-[Leia em Português](README.pt-br.md) · [Where the defaults come from](docs/MEASUREMENTS.md)
+[Leia em Português](README.pt-br.md)
+
+---
+
+## Three parts, one install
+
+| | what it is | state |
+|---|---|---|
+| **[`engine/`](engine/)** | the memory: remembers across sessions, and recalls what is relevant to what you just typed | ready |
+| **[`method/`](method/)** | how the work gets done — as gates that **refuse**, not as advice | ready |
+| **[`knowledge/`](knowledge/)** | lessons that survive the project they came from, shipped as notes the engine indexes | in progress, in blocks |
+
+You can take just the first. The three together are the point: a memory with
+nothing worth remembering is an empty filing cabinet, and a method nobody
+enforces is a wish.
 
 ---
 
 ## The problem
 
-If you use Claude Code seriously, you have hit these walls:
+If you use Claude Code seriously, you have hit these:
 
-1. **Claude forgets everything between sessions** — you re-explain the same context daily.
+1. **It forgets everything between sessions** — you re-explain the same context daily.
 2. **Many projects, no continuity** — switching projects means starting from scratch.
 3. **Work disappears when you do not save it** — close the session and the reasoning behind a decision is gone.
+4. **The rules you wrote get ignored** — including by you, with the document loaded.
 
-## What this does
-
-Four scripts that run silently inside Claude Code:
-
-| Script | Runs | What it does |
-|---|---|---|
-| `session_context.py` | session opens | Injects the last brief for this project |
-| `prompt_memory.py` | you type a prompt | Ranks every note you have and injects the relevant ones |
-| `auto_brief.py` | session closes | Writes the brief from the transcript |
-| `reindex_memory.py` | session opens and closes | Keeps the search index current |
-
-Memory is stored as plain Markdown you can read, edit, move or delete. Removing
-the tool does not remove the memory.
-
-**No LLM calls. No API key. Nothing running in the background. Python standard
-library only.**
-
----
-
-## How it feels
-
-**Before**
-
-> You: "So, continuing from yesterday, we were on the payment webhook where the retry—"
-> Claude: "I don't have context from previous sessions..."
-
-**After**
-
-> *(session opens)*
-> Claude already knows: the project, the last task, the next step, what is blocked.
-> You just continue.
-
-And mid-conversation, when you mention something you worked on weeks ago in a
-different project, the note comes back on its own — you did not have to remember
-that it existed.
+The first three are what `engine/` is for. The fourth one is the interesting one,
+and it is what `method/` is for.
 
 ---
 
@@ -59,100 +42,93 @@ that it existed.
 ```bash
 git clone https://github.com/oliveirarenanfelipe/claude-memory-hooks
 cd claude-memory-hooks
-bash install.sh
+
+bash install.sh           # the memory
+bash install.sh --full    # the memory plus the method
 ```
 
 Restart Claude Code. It works immediately with no configuration.
 
-To tune it, run `/memory-setup` — a short guided conversation that writes the
-config for you. To remove everything: `bash uninstall.sh` (your notes stay).
+`--full` is opt-in on purpose: the gates will **refuse** things. That should be a
+decision, not a surprise.
 
-The installer is idempotent: run it again to upgrade, and it will not register
-anything twice. It backs up `settings.json` before touching it.
+Run `/memory-setup` to tune it, or `bash uninstall.sh` to remove everything —
+your notes stay either way. The installer is idempotent and backs up
+`settings.json` before touching it.
 
 ---
 
-## How it actually works
+## How the memory works
 
 Claude Code hooks can return `hookSpecificOutput.additionalContext`. **Any text
 you put there is injected into the model's context.** That is the entire
-mechanism — everything else in this repository is about deciding *which* text.
-
-Deciding well is the hard part:
+mechanism — the rest is deciding *which* text.
 
 - **Ranked retrieval, not keyword matching.** BM25 over every note in every
-  project, with an inverted index so a search costs about a millisecond.
+  project, with an inverted index, so a search costs about a millisecond.
 - **It knows where you are standing.** A note from the project you have open
-  outranks one from a neighbour — as a multiplier, never a filter, so the
-  neighbour's note still wins when it is genuinely the answer.
+  outranks a neighbour's — as a multiplier, never a filter, so the neighbour's
+  note still wins when it genuinely is the answer.
 - **Long notes are sliced by heading, not truncated.** Something written near the
   end of a 20,000-character note is still findable.
 - **Results are deduplicated by file**, so one long document cannot take all five
   slots and push out the other four answers.
 - **A hand-written brief is never overwritten.** Mark it `curated: true` and the
   automatic one steps aside, leaving a dated footer saying work happened after it.
-- **When no memory is injected, the log says why.** "Too slow" and "found
-  nothing" need opposite fixes and must never look the same.
+- **When no memory is injected, the log says why.** "Too slow" and "found nothing"
+  need opposite fixes and must never look the same.
 
-Every number behind those choices — the budget, the weights, the slice size — was
-measured on a real corpus. They are written down in
-[docs/MEASUREMENTS.md](docs/MEASUREMENTS.md), along with what was tried and
-rejected.
-
----
-
-## Configuration
-
-Everything is optional. Copy `memory-hooks/config.example.json` to
-`~/.claude/memory-hooks/config.json` and keep only what you change.
-
-```json
-{
-  "language": "en",
-  "project_roots": ["/Users/me/code"],
-  "layers": [
-    { "name": "handbook", "path": "/Users/me/notes/handbook",
-      "mode": "flat", "scope": "global" }
-  ]
-}
-```
-
-- **`project_roots`** — where your projects live. Only affects how project names
-  are displayed: with it, `app`; without it, `users-me-code-app`. Both work.
-- **`layers`** — note folders outside `~/.claude/projects/`: a handbook, an
-  Obsidian vault, a folder of standards. `scope: "global"` makes a layer relevant
-  in every project. Prefer a `folders` whitelist over `mode: "recursive"` — a
-  recursive sweep over a folder nobody curated will pull in whatever is sitting
-  there.
-- **`weights`, `budget_ms`, `note_cap`** — the ranking and performance knobs.
-  Read [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md) before changing one; each
-  default is holding something up.
-
-A malformed config falls back to the defaults instead of breaking your session.
+Every number behind those choices was measured. They are written down in
+[`engine/docs/MEASUREMENTS.md`](engine/docs/MEASUREMENTS.md), along with what was
+tried and rejected.
 
 ---
 
-## Tests, and a gate that can fail
+## Why the method is code
+
+Every rule in `method/` existed first as a sentence in a document, and every one
+of them was violated anyway — by the person who wrote it, with the document
+loaded.
+
+The clearest case: a note written nineteen days earlier said, in those exact
+words, *"never through a shell heredoc"*. It was indexed and recallable. The
+mistake happened anyway and deleted five scripts and five hook registrations.
+
+So the rule is narrow: **a practice that matters is a gate, or it is a wish.**
+
+Five of them ship: refuse a new file with nothing calling it; refuse a
+destructive shell command; refuse a write into someone else's project; refuse an
+edit that bloats an always-loaded instruction file; and save the memory directory
+to git on its own, refusing to save secrets.
+
+Details in [`method/README.md`](method/README.md).
+
+---
+
+## Tests, and checks that can fail
 
 ```bash
-python tests/test_memory.py             # 36 checks on the guards
-python tests/golden_recall.py           # ranking + performance gate
-python tests/golden_recall.py --mutate  # break it on purpose; the gate must fail
+make            # all of it
+python engine/tests/test_memory.py             # 36 checks on the memory guards
+python engine/tests/golden_recall.py           # ranking + performance gate
+python engine/tests/golden_recall.py --mutate  # break it on purpose
+python method/gates/tests/test_gates.py        # 25 checks on the gates + mutation
 ```
 
-No pytest, no dependencies, and they run against a synthetic corpus in
-`tests/fixtures/` — never your own notes.
+No pytest, no dependencies, and they run against synthetic corpora — never your
+own notes.
 
-`golden_recall.py` names *which* note must come back and *how high*. A test that
-only asserts "some results came back" stays green while the ranking is destroyed.
+The part worth copying into your own projects is `--mutate`. It deliberately
+breaks the thing each check protects — makes neighbours outrank the open project,
+removes a layer, switches slicing off, empties the secret detector — and **fails
+if the checks do not notice**. A check that has only ever passed is not evidence;
+it will stay green through a real regression too.
 
-`--mutate` is the part worth copying into your own projects. It deliberately
-breaks the thing each case protects — makes neighbours outrank the open project,
-removes the extra layers, switches slicing off — and **fails if the gate does not
-notice**. A gate that has only ever passed is not evidence; it will stay green
-through a real regression too.
+Both suites caught real defects in this codebase during development, including a
+gate that died the first time it tried to refuse anything, and a backup that
+returned files 38 bytes larger than it stored them.
 
-CI runs all three on Linux, macOS and Windows, on Python 3.8 and 3.12.
+CI runs everything on Linux, macOS and Windows, on Python 3.8 and 3.12.
 
 ---
 
@@ -167,8 +143,8 @@ CI runs all three on Linux, macOS and Windows, on Python 3.8 and 3.12.
   hooks/recall.log              why each prompt got the memory it got
 ```
 
-The index (`projects/_index/`) is derived. Delete it any time; the next session
-rebuilds it from the Markdown.
+Plain Markdown you can read, edit, move or delete. Removing the tool does not
+remove the memory.
 
 ---
 
@@ -182,11 +158,11 @@ This does the same core job with Python scripts and Markdown files. Nothing to
 keep running, nothing to break, nothing to pay for, and no service that can
 disappear and take your memory with it.
 
-The trade is real and worth stating plainly: **lexical search, not semantic.** If
-you ask about "authentication" and your note says "login", BM25 will not connect
-them — a vector store would. In exchange you get results you can explain, an
-index that rebuilds in seconds, zero infrastructure, and notes that stay
-yours in a format that will still open in ten years.
+The trade is real and worth stating plainly: **lexical search, not semantic.** Ask
+about "authentication" when your note says "login" and BM25 will not connect them;
+a vector store would. In exchange you get results you can explain, an index that
+rebuilds in seconds, zero infrastructure, and notes that stay yours in a format
+that will still open in ten years.
 
 ---
 

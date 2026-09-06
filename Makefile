@@ -1,13 +1,16 @@
 # claude-memory-hooks
-.PHONY: test gate mutate all
+.PHONY: all test gate mutate gates
 
-all: test gate mutate
+all: test gate mutate gates
 
 test:
-	python tests/test_memory.py
+	python engine/tests/test_memory.py
 
 gate:
-	python tests/golden_recall.py
+	python engine/tests/golden_recall.py
 
 mutate:
-	python tests/golden_recall.py --mutate
+	python engine/tests/golden_recall.py --mutate
+
+gates:
+	python method/gates/tests/test_gates.py

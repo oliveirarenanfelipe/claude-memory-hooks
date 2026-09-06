@@ -3,16 +3,27 @@
 """
 register_hooks.py — add or remove this project's hooks in ~/.claude/settings.json.
 
-    python tools/register_hooks.py --install
+    python tools/register_hooks.py --install --level engine
+    python tools/register_hooks.py --install --level full
     python tools/register_hooks.py --uninstall
     python tools/register_hooks.py --status
 
 Called by: install.sh, uninstall.sh.
 
+Two levels, because the two halves of this project answer different questions:
+
+  engine  the memory: remember across sessions, recall what is relevant.
+  full    the memory PLUS the method: gates that refuse, and an automatic
+          snapshot of the memory directory.
+
+`full` changes how your sessions behave — it will refuse actions. That is the
+point, and it is also why it is opt-in rather than the default.
+
 It lives in its own file rather than inside the shell script on purpose. Editing
 settings.json is the one destructive thing this installer does, and it belongs
 somewhere it can be read, reviewed and run on its own — not buried in a heredoc
-inside a shell script.
+inside a shell script. That is not a style preference: a heredoc holding a script
+is exactly how five hook scripts got deleted here.
 
 Safety rules it follows:
   - a timestamped backup of settings.json before any write;
@@ -28,66 +39,86 @@ import os
 import shutil
 import sys
 import time
-from pathlib import Path
 
-SCRIPTS = ["memory_config.py", "memory_lib.py", "session_context.py",
-           "prompt_memory.py", "auto_brief.py", "reindex_memory.py"]
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# (event, script, extra args, timeout in seconds). Order within an event is the
-# order the context blocks arrive in.
-REGISTRATIONS = [
-    ("SessionStart", "reindex_memory.py", " --quiet", 30),
-    ("SessionStart", "session_context.py", "", 10),
-    ("UserPromptSubmit", "prompt_memory.py", "", 5),
-    ("Stop", "reindex_memory.py", " --quiet", 30),
-    ("Stop", "auto_brief.py", "", 120),
+ENGINE_SCRIPTS = ["memory_config.py", "memory_lib.py", "session_context.py",
+                  "prompt_memory.py", "auto_brief.py", "reindex_memory.py"]
+GATE_SCRIPTS = ["gate_lib.py", "no_orphan_files.py", "destructive_bash.py",
+                "project_boundary.py", "context_budget.py", "snapshot.py"]
+ALL_SCRIPTS = ENGINE_SCRIPTS + GATE_SCRIPTS
+
+# (event, matcher or None, folder, script, extra args, timeout seconds)
+ENGINE_HOOKS = [
+    ("SessionStart", None, "hooks", "reindex_memory.py", " --quiet", 30),
+    ("SessionStart", None, "hooks", "session_context.py", "", 10),
+    ("UserPromptSubmit", None, "hooks", "prompt_memory.py", "", 5),
+    ("Stop", None, "hooks", "reindex_memory.py", " --quiet", 30),
+    ("Stop", None, "hooks", "auto_brief.py", "", 120),
+]
+GATE_HOOKS = [
+    ("PreToolUse", "Bash", "gates", "destructive_bash.py", "", 15),
+    ("PreToolUse", "Write", "gates", "no_orphan_files.py", "", 15),
+    ("PreToolUse", "Edit|Write", "gates", "project_boundary.py", "", 15),
+    ("PreToolUse", "Edit|Write", "gates", "context_budget.py", "", 15),
+    ("Stop", None, "gates", "snapshot.py", "", 120),
 ]
 
 
-def claude_dir() -> Path:
-    return Path(os.environ.get("CLAUDE_HOME") or (Path.home() / ".claude"))
+def claude_dir():
+    return os.environ.get("CLAUDE_HOME") or os.path.join(os.path.expanduser("~"),
+                                                         ".claude")
 
 
-def load_settings(path: Path) -> dict:
+def load_settings(path):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
     except FileNotFoundError:
         return {}
-    except Exception as e:
-        print(f"settings.json exists but could not be parsed: {e}", file=sys.stderr)
+    except Exception as exc:
+        print("settings.json exists but could not be parsed: %s" % exc,
+              file=sys.stderr)
         print("Refusing to overwrite it. Fix or move the file and run again.",
               file=sys.stderr)
         sys.exit(1)
 
 
-def save_settings(path: Path, settings: dict):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        backup = path.with_suffix(f".json.bak-{time.strftime('%Y%m%d-%H%M%S')}")
+def save_settings(path, settings):
+    folder = os.path.dirname(path)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    if os.path.exists(path):
+        backup = "%s.bak-%s" % (path, time.strftime("%Y%m%d-%H%M%S"))
         shutil.copy2(path, backup)
-        print(f"  backup: {backup.name}")
-    tmp = path.with_suffix(f".json.{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n",
-                   encoding="utf-8")
+        print("  backup: %s" % os.path.basename(backup))
+    tmp = "%s.%d.tmp" % (path, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(settings, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
     os.replace(tmp, path)
 
 
-def each_hook(settings: dict):
+def each_hook(settings):
     for event, groups in (settings.get("hooks") or {}).items():
         for group in groups:
             for hook in group.get("hooks", []):
                 yield event, group, hook
 
 
-def norm(command) -> str:
+def norm(command):
     return str(command or "").replace("\\", "/")
 
 
-def install(settings: dict, hooks_dir: Path) -> int:
+def wanted(level):
+    return ENGINE_HOOKS + (GATE_HOOKS if level == "full" else [])
+
+
+def install(settings, base, level):
     hooks = settings.setdefault("hooks", {})
     changed = 0
-    for event, script, args, timeout in REGISTRATIONS:
-        command = f'python "{hooks_dir / script}"{args}'
+    for event, matcher, folder, script, args, timeout in wanted(level):
+        command = 'python "%s"%s' % (os.path.join(base, folder, script), args)
         existing = None
         for ev, _group, hook in each_hook(settings):
             if ev == event and script in norm(hook.get("command")):
@@ -98,18 +129,21 @@ def install(settings: dict, hooks_dir: Path) -> int:
                 existing["command"] = command
                 existing["timeout"] = timeout
                 changed += 1
-                print(f"  upgraded  {event}/{script}")
+                print("  upgraded  %s/%s" % (event, script))
             else:
-                print(f"  already   {event}/{script}")
+                print("  already   %s/%s" % (event, script))
             continue
-        hooks.setdefault(event, []).append(
-            {"hooks": [{"type": "command", "command": command, "timeout": timeout}]})
+        group = {"hooks": [{"type": "command", "command": command,
+                            "timeout": timeout}]}
+        if matcher:
+            group["matcher"] = matcher
+        hooks.setdefault(event, []).append(group)
         changed += 1
-        print(f"  added     {event}/{script}")
+        print("  added     %s/%s" % (event, script))
     return changed
 
 
-def uninstall(settings: dict) -> int:
+def uninstall(settings):
     hooks = settings.get("hooks") or {}
     removed = 0
     for event in list(hooks):
@@ -117,10 +151,10 @@ def uninstall(settings: dict) -> int:
         for group in hooks[event]:
             keep = []
             for hook in group.get("hooks", []):
-                if any(s in norm(hook.get("command")) for s in SCRIPTS):
+                command = norm(hook.get("command"))
+                if any(s in command for s in ALL_SCRIPTS):
                     removed += 1
-                    name = norm(hook.get("command")).rsplit("/", 1)[-1]
-                    print(f"  removed   {event}/{name}")
+                    print("  removed   %s/%s" % (event, command.rsplit("/", 1)[-1]))
                 else:
                     keep.append(hook)
             if keep:
@@ -133,14 +167,14 @@ def uninstall(settings: dict) -> int:
     return removed
 
 
-def status(settings: dict) -> int:
+def status(settings):
     found = 0
     for event, _group, hook in each_hook(settings):
         command = norm(hook.get("command"))
-        if any(s in command for s in SCRIPTS):
+        if any(s in command for s in ALL_SCRIPTS):
             found += 1
-            print(f"  {event:16} timeout={hook.get('timeout')}  "
-                  f"{command.rsplit('/', 1)[-1]}")
+            print("  %-16s timeout=%-4s %s" % (event, hook.get("timeout"),
+                                               command.rsplit("/", 1)[-1]))
     if not found:
         print("  none of this project's hooks are registered")
     return found
@@ -151,27 +185,30 @@ def main():
     parser.add_argument("--install", action="store_true")
     parser.add_argument("--uninstall", action="store_true")
     parser.add_argument("--status", action="store_true")
+    parser.add_argument("--level", choices=("engine", "full"), default="engine")
     args = parser.parse_args()
 
     base = claude_dir()
-    settings_path = base / "settings.json"
+    settings_path = os.path.join(base, "settings.json")
     settings = load_settings(settings_path)
 
     if args.status or not (args.install or args.uninstall):
-        print(f"settings: {settings_path}")
+        print("settings: %s" % settings_path)
         status(settings)
         return 0
 
     if args.install:
-        changed = install(settings, base / "hooks")
+        changed = install(settings, base, args.level)
         if changed:
             save_settings(settings_path, settings)
-        print(f"  {changed} registration(s) written")
+        print("  %d registration(s) written  (level: %s)" % (changed, args.level))
+        if args.level == "full":
+            print("  the gates will now REFUSE some actions — that is the point")
     else:
         removed = uninstall(settings)
         if removed:
             save_settings(settings_path, settings)
-        print(f"  {removed} registration(s) removed")
+        print("  %d registration(s) removed" % removed)
         print("  your notes and session briefs were not touched")
     return 0
 
