@@ -1,0 +1,60 @@
+{
+  "_comment": "Copy to ~/.claude/memory-hooks/config.json. Every field is optional; the defaults in hooks/memory_config.py are the ones that were measured in production. Delete anything you do not need.",
+
+  "language": "en",
+  "extra_stopwords": [],
+
+  "project_roots": ["C:/Users/me/Projects"],
+
+  "layers": [
+    {
+      "name": "handbook",
+      "path": "C:/Users/me/Notes/handbook",
+      "mode": "flat",
+      "scope": "global"
+    },
+    {
+      "name": "reading",
+      "path": "C:/Users/me/Notes/vault",
+      "folders": ["Literature", "Sources", "People"],
+      "scope": "project",
+      "weight": 0.7
+    },
+    {
+      "name": "playbooks",
+      "path": "C:/Users/me/Notes/playbooks",
+      "mode": "recursive",
+      "scope": "global",
+      "card": true,
+      "weight": 0.85
+    }
+  ],
+
+  "weights": {
+    "current_project": 1.15,
+    "global_scope": 1.10,
+    "other_project": 0.50,
+    "default_layer": 0.70
+  },
+
+  "budget_ms": 1000,
+  "top_k": 5,
+  "max_chars_per_block": 1200,
+  "max_total_chars": 3000,
+  "min_prompt_len": 12,
+  "note_cap": 5000,
+  "chunk_min": 5000,
+  "skip_filenames": ["MEMORY.md", "index.md", "README.md"],
+
+  "sync": {
+    "enabled": false,
+    "path": "C:/Users/me/Notes",
+    "timeout": 60
+  },
+
+  "keywords": [
+    { "match": ["billing", "stripe", "invoice"], "files": ["project_billing.md"] }
+  ],
+
+  "log_recall": true
+}

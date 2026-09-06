@@ -1,90 +1,56 @@
-#!/bin/bash
-# claude-memory-hooks — install script
-# Copies hooks to ~/.claude/hooks/ and registers them in settings.json
+#!/usr/bin/env bash
+# claude-memory-hooks — installer
+#
+# Copies the hooks into ~/.claude/hooks/ and registers them in settings.json.
+# Idempotent: running it again upgrades the files and never duplicates a hook.
+# Nothing is downloaded, nothing is compiled, there are no dependencies.
+#
+# Override the target with CLAUDE_HOME=/some/path bash install.sh
 
-set -e
+set -euo pipefail
 
-HOOKS_DIR="$HOME/.claude/hooks"
-CONFIG_DIR="$HOME/.claude/memory-hooks"
-SETTINGS="$HOME/.claude/settings.json"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAUDE_DIR="${CLAUDE_HOME:-$HOME/.claude}"
+HOOKS_DIR="$CLAUDE_DIR/hooks"
+CONFIG_DIR="$CLAUDE_DIR/memory-hooks"
+COMMANDS_DIR="$CLAUDE_DIR/commands"
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Installing claude-memory-hooks..."
-
-# Create directories
-mkdir -p "$HOOKS_DIR"
-mkdir -p "$CONFIG_DIR"
-
-# Copy hooks
-cp "$SCRIPT_DIR/hooks/auto_brief.py" "$HOOKS_DIR/"
-cp "$SCRIPT_DIR/hooks/session_context.py" "$HOOKS_DIR/"
-cp "$SCRIPT_DIR/hooks/prompt_memory.py" "$HOOKS_DIR/"
-
-echo "✓ Hooks copied to $HOOKS_DIR"
-
-# Copy skill
-SKILLS_DIR="$HOME/.claude/commands"
-mkdir -p "$SKILLS_DIR"
-cp "$SCRIPT_DIR/skills/memory-setup/SKILL.md" "$SKILLS_DIR/memory-setup.md"
-
-echo "✓ Skill /memory-setup installed"
-
-# Register hooks in settings.json
-if [ ! -f "$SETTINGS" ]; then
-    echo '{}' > "$SETTINGS"
+# Windows (Git Bash) ships `python`; most other places ship `python3`.
+PY="$(command -v python3 || command -v python || true)"
+if [ -z "$PY" ]; then
+  echo "Python 3.8+ is required and was not found on PATH." >&2
+  exit 1
 fi
 
-python3 - <<'PYEOF'
-import json, os, sys
-from pathlib import Path
+echo "Installing claude-memory-hooks into $CLAUDE_DIR"
 
-HOME = Path.home()
-SETTINGS = HOME / ".claude" / "settings.json"
-HOOKS_DIR = HOME / ".claude" / "hooks"
+mkdir -p "$HOOKS_DIR" "$CONFIG_DIR" "$COMMANDS_DIR"
 
-try:
-    settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
-except Exception:
-    settings = {}
+for f in memory_config.py memory_lib.py session_context.py prompt_memory.py \
+         auto_brief.py reindex_memory.py; do
+  cp "$SRC/hooks/$f" "$HOOKS_DIR/$f"
+done
+echo "  6 hook scripts copied"
 
-if "hooks" not in settings:
-    settings["hooks"] = {}
+# The example is always refreshed; your own config.json is never overwritten,
+# because it is the one file in here that belongs to you.
+cp "$SRC/memory-hooks/config.example.json" "$CONFIG_DIR/config.example.json"
+if [ -f "$CONFIG_DIR/config.json" ]; then
+  echo "  existing config.json left untouched"
+else
+  echo "  no config.json yet — the defaults work as they are"
+  echo "  example placed at $CONFIG_DIR/config.example.json"
+fi
 
-hooks = settings["hooks"]
+cp "$SRC/skills/memory-setup/SKILL.md" "$COMMANDS_DIR/memory-setup.md"
+echo "  /memory-setup installed"
 
-# SessionStart
-if "SessionStart" not in hooks:
-    hooks["SessionStart"] = []
-session_cmd = f'python "{HOOKS_DIR}/session_context.py"'
-if not any(h.get("command") == session_cmd for group in hooks["SessionStart"] for h in group.get("hooks", [])):
-    hooks["SessionStart"].append({
-        "hooks": [{"type": "command", "command": session_cmd, "timeout": 10}]
-    })
+CLAUDE_HOME="$CLAUDE_DIR" "$PY" "$SRC/tools/register_hooks.py" --install
 
-# UserPromptSubmit
-if "UserPromptSubmit" not in hooks:
-    hooks["UserPromptSubmit"] = []
-prompt_cmd = f'python "{HOOKS_DIR}/prompt_memory.py"'
-if not any(h.get("command") == prompt_cmd for group in hooks["UserPromptSubmit"] for h in group.get("hooks", [])):
-    hooks["UserPromptSubmit"].append({
-        "hooks": [{"type": "command", "command": prompt_cmd, "timeout": 5}]
-    })
-
-# Stop
-if "Stop" not in hooks:
-    hooks["Stop"] = []
-stop_cmd = f'python "{HOOKS_DIR}/auto_brief.py"'
-if not any(h.get("command") == stop_cmd for group in hooks["Stop"] for h in group.get("hooks", [])):
-    hooks["Stop"].append({
-        "hooks": [{"type": "command", "command": stop_cmd, "timeout": 120}]
-    })
-
-SETTINGS.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
-print("✓ Hooks registered in settings.json")
-PYEOF
-
-echo ""
-echo "Installation complete."
-echo ""
-echo "Next step: open Claude Code and run /memory-setup"
-echo "It will ask about your projects and configure everything."
+echo
+echo "Done. Restart Claude Code, then either run /memory-setup or just start"
+echo "working — the first session brief is written when you close a session."
+echo
+echo "Check the install:  CLAUDE_HOME=\"$CLAUDE_DIR\" $PY $SRC/tools/register_hooks.py --status"
+echo "Build the index:    $PY $HOOKS_DIR/reindex_memory.py"
+echo "Remove everything:  bash $SRC/uninstall.sh"

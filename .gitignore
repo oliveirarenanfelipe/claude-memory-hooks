@@ -1,0 +1,9 @@
+# derived, rebuildable artefacts
+__pycache__/
+*.pyc
+hooks/recall.log
+hooks/recall.log.1
+tests/fixtures/claude_home/projects/_index/
+tests/fixtures/claude_home/memory-hooks/config.json
+tests/fixtures/claude_home/projects/*/memory/session_briefs/
+tests/fixtures/_transcript.jsonl

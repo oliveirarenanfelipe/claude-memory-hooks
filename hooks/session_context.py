@@ -1,51 +1,80 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-session_context.py — SessionStart hook
-Injects the last session brief into Claude's context at the start of every session.
-Claude knows where you left off without you having to explain.
+session_context.py — SessionStart hook: inject the last session's brief.
 
-No LLM calls. No API key needed. No external dependencies.
+Claude opens already knowing the project, what was done last time, what the next
+step is and what is blocked. You just continue.
+
+Optionally runs `git pull` first, for people who sync their notes between
+machines (config: `sync`). Off by default.
+
+Registered by install.sh as a SessionStart hook (10s timeout).
+
+Stdlib only. No LLM calls, no API key, no server.
 """
 import json
 import sys
-import subprocess
 from pathlib import Path
 
-HOME = Path.home()
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import memory_config as cfgmod          # noqa: E402
 
 
-def get_project_slug(cwd: str) -> str:
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            cwd=cwd, capture_output=True, text=True, timeout=3
-        )
-        if result.returncode == 0:
-            remote = result.stdout.strip()
-            name = remote.rstrip("/").split("/")[-1].replace(".git", "")
-            if name:
-                return name.lower()
-    except Exception:
-        pass
-    return Path(cwd).name.lower().replace(" ", "-")
-
-
-def get_memory_dir(cwd: str) -> Path:
-    encoded = cwd.replace(":", "").replace("\\", "-").replace("/", "-").strip("-")
-    return HOME / ".claude" / "projects" / encoded / "memory"
-
-
-def read_brief(memory_dir: Path, slug: str) -> str:
-    path = memory_dir / "session_briefs" / f"{slug}.md"
+def read_brief(cwd: str, slug: str) -> str:
+    if not slug:
+        return ""
+    path = cfgmod.briefs_dir_for(cwd) / f"{slug}.md"
     if not path.exists():
         return ""
-    content = path.read_text(encoding="utf-8", errors="replace")
-    # Remove frontmatter
+    try:
+        content = path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return ""
     if content.startswith("---"):
         parts = content.split("---", 2)
         if len(parts) >= 3:
             content = parts[2].strip()
     return content
+
+
+def sync_notes(cfg: dict) -> str:
+    """Pull a notes repo at session start. Returns a WARNING string, or "".
+
+    Why the failure is reported instead of swallowed: a pull that fails silently
+    is worse than no pull at all. Measured here — one diverged branch made every
+    pull fail for sixteen days with its return code unread, the machine fell 67
+    commits behind, and a later session confidently concluded "nothing new has
+    arrived" while reading a dead copy. `--rebase --autostash` gets past a local
+    commit and a dirty tree; the warning gets past the silence.
+    """
+    sync = cfg.get("sync") or {}
+    if not sync.get("enabled"):
+        return ""
+    path = Path(str(sync.get("path", "")).strip())
+    try:
+        if not path.is_dir() or not (path / ".git").is_dir():
+            return ""
+        import subprocess
+        remote = subprocess.run(["git", "-C", str(path), "remote"],
+                                capture_output=True, text=True, timeout=5)
+        if remote.returncode != 0 or not remote.stdout.strip():
+            return ""
+        r = subprocess.run(
+            ["git", "-C", str(path), "-c", "rebase.autoStash=true",
+             "pull", "--rebase", "--quiet"],
+            capture_output=True, text=True, timeout=int(sync.get("timeout", 60)))
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "").strip().splitlines()
+            err = err[-1] if err else f"exit {r.returncode}"
+            return ("## ⚠️ notes sync FAILED\n"
+                    f"`git pull` in `{path}` did not run: `{err}`\n"
+                    "Anything written from another machine is invisible here. "
+                    "Fix this before trusting what you read.")
+        return ""
+    except Exception as e:
+        return (f"## ⚠️ notes sync could not run ({type(e).__name__})\n"
+                "Recent notes may be missing on this machine.")
 
 
 def main():
@@ -55,27 +84,27 @@ def main():
         print(json.dumps({"continue": True}))
         sys.exit(0)
 
+    cfg = cfgmod.load()
+    warning = sync_notes(cfg)
+
     cwd = data.get("cwd", "")
-    if not cwd:
+    slug = cfgmod.detect_project(cwd, cfg)
+    brief = read_brief(cwd, slug)
+
+    if not brief and not warning:
         print(json.dumps({"continue": True}))
         sys.exit(0)
 
-    slug = get_project_slug(cwd)
-    memory_dir = get_memory_dir(cwd)
-    brief = read_brief(memory_dir, slug)
+    parts = []
+    if warning:
+        parts.append(warning)
+    if brief:
+        parts.append(f"## Last session — {slug}\n\n{brief}")
 
-    if not brief:
-        print(json.dumps({"continue": True}))
-        sys.exit(0)
-
-    context = f"## Last session context — {slug}\n\n{brief}"
-
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "SessionStart",
-            "additionalContext": context
-        }
-    }))
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": "\n\n".join(parts),
+    }}))
 
 
 if __name__ == "__main__":

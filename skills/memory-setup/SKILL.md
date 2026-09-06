@@ -1,85 +1,126 @@
 ---
 name: memory-setup
-description: Configure claude-memory-hooks for your projects. Run this once after installing.
+description: Configure claude-memory-hooks for your projects. Run this once after installing, or any time your setup changes.
 ---
 
-You are setting up claude-memory-hooks for this user.
-Your job is to have a friendly conversation, understand their setup, and generate the config file.
+You are configuring claude-memory-hooks for this user.
 
----
+Two things to hold on to while you do it:
 
-## The conversation
-
-Greet them briefly and explain what you're doing in one sentence.
-
-Then ask these questions, **one at a time**, waiting for each answer:
-
-**1. Projects**
-"How many projects do you work on with Claude Code? Give me the names — can be anything, doesn't need to be technical."
-
-*(Wait for answer. If they list more than one, that's great. If they say "just one", that's fine too.)*
-
-**2. Paths** (for each project they named)
-"Where does [project name] live on your computer? Just paste the folder path."
-
-*(They can find this by opening the folder and copying from the address bar. Help them if needed.)*
-
-**3. Keywords** (for each project)
-"What words would you typically type when talking to Claude about [project name]? Think about client names, product names, tools you use, or topics you return to often."
-
-*(Examples to help them: "For a bakery client it might be 'bakery', 'Maria', 'website'. For a software product it might be 'dashboard', 'users', 'billing'.)*
-
-**4. Language preference**
-"Do you want the memory briefs in English or Portuguese (PT-BR)?"
+1. **The hooks already work with no configuration.** Everything below is tuning,
+   not setup. Never leave the user with the impression that they must answer all
+   of this before memory works — they do not.
+2. **Read the current config before asking anything.** If
+   `~/.claude/memory-hooks/config.json` exists, open it and say what is already
+   there. Asking someone to re-answer questions they answered last month is the
+   fastest way to make a tool feel disposable.
 
 ---
 
-## After collecting answers
+## Step 0 — look before you ask
 
-Generate the config file at `~/.claude/memory-hooks/config.json`:
+- Read `~/.claude/memory-hooks/config.json` if it exists.
+- List the folders under `~/.claude/projects/` — those are the projects Claude
+  Code already knows about, and the names are encoded paths (`C--Users-me-code-app`
+  means `C:\Users\me\code\app`).
+- Run `python ~/.claude/hooks/reindex_memory.py` and report how many notes were
+  found. If it says zero, the interesting question is not about keywords: it is
+  that this user has no notes yet, and you should tell them the first brief
+  appears when they close their next session.
+
+Summarise what you found in two or three lines, then ask only what is missing.
+
+---
+
+## Step 1 — the one question that pays for itself
+
+> "Do all your projects live under one folder? If so, paste that folder's path."
+
+This becomes `project_roots`. It is worth asking first because it is the only
+setting that changes what the user *sees*: with it, a project is filed under
+`app`; without it, under `c-users-me-code-app`. Both work and both are stable —
+one is just readable.
+
+Accept more than one root. Accept "no" and move on.
+
+---
+
+## Step 2 — language
+
+> "What language do you write your notes in?"
+
+Sets `language` (`"en"`, `"pt"`, `"es"`, or a list like `["en", "pt"]` if they
+mix). It controls two things: which short words are ignored when searching, and
+the wording the automatic brief looks for when it hunts for a decision, a next
+step or a blocker.
+
+If they mix languages, use the list. There is no cost to including both.
+
+---
+
+## Step 3 — notes that live outside a project
+
+> "Do you keep notes anywhere else — a handbook, an Obsidian vault, a folder of
+> standards — that you would want Claude to find while working on any project?"
+
+Each one becomes an entry in `layers`:
 
 ```json
 {
-  "language": "en",
-  "projects": [
-    {
-      "name": "Project Name",
-      "slug": "project-name",
-      "path": "/path/to/project",
-      "keywords": ["word1", "word2", "word3"]
-    }
-  ]
+  "name": "handbook",
+  "path": "/absolute/path/to/folder",
+  "mode": "flat",
+  "scope": "global"
 }
 ```
 
-Rules:
-- `slug`: lowercase, hyphens, no spaces (derive from name)
-- `path`: exactly what they gave you
-- `keywords`: what they said + obvious variations (singular/plural, abbreviations)
-- `language`: "en" or "pt-br"
-
-Write the file using the Write tool.
-
----
-
-## Confirm and close
-
-Show them a summary of what was configured:
-
-"All set. Here's what I configured:
-
-**[Project name]** — [path]
-Keywords: [word1], [word2], [word3]
-
-From now on:
-- When you open Claude in this project, I'll automatically know where you left off
-- When you mention [keyword], I'll bring up the relevant context
-- When you close a session, I'll save a brief of what we did
-
-You don't need to do anything else. Just work normally."
+- `mode`: `"flat"` reads only the top level, `"recursive"` reads everything
+  below. **Default to `"flat"`.**
+- `folders`: a whitelist of subfolders, read one level deep each. Prefer this
+  over `"recursive"` whenever the folder has anything in it that is not a note —
+  drafts, downloads, exports, anything with credentials in it. A recursive sweep
+  over a folder nobody curated puts junk into the search results and, worse, can
+  put private material into the model's context. **Ask what else is in the
+  folder before choosing recursive.**
+- `scope`: `"global"` if the notes are relevant in every project (standards, a
+  handbook); `"project"` if they are reference material that should not outrank
+  the project's own notes.
 
 ---
 
-## If they want to add more projects later
+## Step 4 — keyword fallback (optional, and usually skippable)
 
-Tell them: "Just run /memory-setup again — I'll update the config."
+The ranked search normally finds the right note on its own. The keyword map only
+runs when the search returns nothing, so treat it as a safety net for a handful
+of terms the user knows they use constantly.
+
+Only ask if they want one:
+
+```json
+"keywords": [
+  { "match": ["billing", "stripe"], "files": ["project_billing.md"] }
+]
+```
+
+`files` are names inside that project's own `memory/` folder.
+
+---
+
+## Step 5 — write it, then prove it
+
+Write `~/.claude/memory-hooks/config.json`. Include only the keys you actually
+gathered — every other default is already correct, and a config file full of
+restated defaults is a file nobody dares to edit later.
+
+Then **verify, do not assert**:
+
+1. `python ~/.claude/hooks/reindex_memory.py` — report the note count.
+2. Ask the user for a question they would genuinely type about one of their
+   projects, and show them what the memory hook returns for it.
+3. If it returns nothing useful, say so plainly and check `hooks/recall.log`:
+   the last line names the reason. `nohit` means the notes do not contain the
+   words they typed — a coverage problem, not a configuration one.
+
+Close with where their memory lives — `~/.claude/projects/*/memory/`, plain
+Markdown they can read, edit or delete — and that `bash uninstall.sh` removes the
+tool without touching any of it.

@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.8", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # No install step on purpose: this project has no dependencies.
+      - name: Unit tests
+        run: python tests/test_memory.py
+
+      - name: Recall gate
+        run: python tests/golden_recall.py
+
+      # A gate that has only ever passed is not evidence. This step breaks the
+      # index on purpose and fails if the gate does not notice.
+      - name: Gate mutation
+        run: python tests/golden_recall.py --mutate

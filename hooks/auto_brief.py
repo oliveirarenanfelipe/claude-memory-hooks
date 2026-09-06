@@ -1,49 +1,90 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-auto_brief.py — Stop hook
-Automatically generates a session brief at the end of every Claude Code session.
-Reads the session transcript, extracts what was done, saves to the project memory directory.
+auto_brief.py — Stop hook: write the session brief automatically.
 
-No LLM calls. No API key needed. No external dependencies.
+Reads the transcript Claude Code already keeps on disk and extracts the brief
+from it. No LLM call, so it costs nothing, needs no API key, and always works.
+
+Two guards that matter more than the extraction itself:
+  1. A brief you wrote by hand (`curated: true`) is NEVER overwritten.
+  2. When a curated brief is left in place, a dated footer says work happened
+     after it — otherwise "curated wins" quietly becomes "curated freezes".
+
+Registered by install.sh as a Stop hook (120s timeout).
+
+Stdlib only. No LLM calls, no API key, no server.
 """
 import json
-import sys
 import os
 import re
-import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
-HOME = Path.home()
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import memory_config as cfgmod          # noqa: E402
+
+CODE_EXTS = ('.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.sh', '.rb',
+             '.go', '.rs', '.java', '.sql', '.yml', '.yaml', '.html', '.css', '.toml')
+
+# Phrases that mark a blocker / a decision / a next step, per language. Override
+# with `brief_keywords` in config.json to match how you actually write.
+BRIEF_KEYWORDS = {
+    "en": {
+        "blocker": ["blocked", "waiting on", "waiting for", "not tested yet",
+                    "needs approval", "still need to verify", "before we can",
+                    "next session", "pending on"],
+        "decision": ["decided", "decision", "we chose", "we will use", "going with",
+                     "dropped", "not going to use", "replaced by", "renamed to",
+                     "architecture", "agreed to"],
+        "next": ["next step", "after that", "to continue", "still missing",
+                 "still need to", "next session", "remains to"],
+    },
+    "pt": {
+        "blocker": ["bloqueado", "aguardando", "pendente de", "não foi testado",
+                    "falta validar", "próxima sessão", "antes de avançar",
+                    "precisa de autorização", "falta testar"],
+        "decision": ["decidido", "decisão", "optamos por", "vamos usar",
+                     "escolhemos", "descartado", "não vai usar", "substituído por",
+                     "renomeado para", "arquitetura", "padrão adotado"],
+        "next": ["próximo passo", "a seguir", "depois disso", "para continuar",
+                 "falta implementar", "pendente", "próxima sessão", "ainda falta"],
+    },
+}
+
+LABELS = {
+    "en": {"date": "Date", "project": "Project", "done": "What was done",
+           "files": "Files touched", "decision": "Key decision",
+           "next": "Next step", "blocker": "Blocker", "none_f": "None.",
+           "none_m": "None.", "fallback": "Work session.",
+           "resume": "Continue from", "check": "Review what was done and continue.",
+           "warn": "There was work on **{d}** AFTER the last saved brief — "
+                   "the summary above may not cover the end of the session."},
+    "pt": {"date": "Data", "project": "Projeto", "done": "O que foi feito",
+           "files": "Arquivos tocados", "decision": "Decisão importante",
+           "next": "Próximo passo", "blocker": "Bloqueio ativo", "none_f": "Nenhuma.",
+           "none_m": "Nenhum.", "fallback": "Sessão de trabalho.",
+           "resume": "Continuar a partir de", "check": "Verificar o que foi feito e continuar.",
+           "warn": "Houve trabalho em **{d}** DEPOIS do último brief salvo — "
+                   "o resumo acima pode não cobrir o fim da sessão."},
+}
 
 
-def get_project_slug(cwd: str) -> str:
-    """Detect project name from git remote or directory name."""
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            cwd=cwd, capture_output=True, text=True, timeout=3
-        )
-        if result.returncode == 0:
-            remote = result.stdout.strip()
-            # Extract repo name from URL (github.com/user/repo or git@github.com:user/repo)
-            name = remote.rstrip("/").split("/")[-1].replace(".git", "")
-            if name:
-                return name.lower()
-    except Exception:
-        pass
-    # Fallback: directory name
-    return Path(cwd).name.lower().replace(" ", "-")
+def _lang(cfg):
+    langs = cfg.get("language") or "en"
+    if isinstance(langs, list):
+        langs = langs[0] if langs else "en"
+    return str(langs).lower() if str(langs).lower() in LABELS else "en"
 
 
-def get_memory_dir(cwd: str) -> Path:
-    """Get the Claude Code memory directory for this project."""
-    # Claude Code encodes cwd as directory name under ~/.claude/projects/
-    encoded = cwd.replace(":", "").replace("\\", "-").replace("/", "-").strip("-")
-    return HOME / ".claude" / "projects" / encoded / "memory"
+def _keywords(cfg, lang):
+    base = BRIEF_KEYWORDS.get(lang, BRIEF_KEYWORDS["en"])
+    return {**base, **(cfg.get("brief_keywords") or {})}
 
 
 def read_transcript(path: str) -> list:
+    """The JSONL transcript as [{role, text}] — tool traffic dropped."""
     messages = []
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
@@ -75,85 +116,142 @@ def read_transcript(path: str) -> list:
     return messages
 
 
+def extract_files(messages: list) -> list:
+    pattern = re.compile(r'[`\s]([A-Za-z0-9_/\\.-]+\.[a-zA-Z]{1,5})\b')
+    files = set()
+    for m in messages:
+        for match in pattern.findall(m["text"]):
+            if match.lower().endswith(CODE_EXTS):
+                files.add(match)
+    return sorted(files)[:8]
+
+
+def _sentence_with(messages, keywords, fallback, window=None, min_len=15, cap=300):
+    pool = messages[-window:] if window else messages
+    for m in reversed(pool):
+        low = m["text"].lower()
+        for kw in keywords:
+            if kw in low:
+                for sentence in m["text"].split("."):
+                    if kw in sentence.lower() and len(sentence.strip()) >= min_len:
+                        return sentence.strip()[:cap]
+    return fallback
+
+
 def first_sentence(text: str, max_chars: int = 200) -> str:
     text = text.replace("\n", " ").strip()
-    for sep in [". ", "! ", "? "]:
+    for sep in (". ", "! ", "? "):
         idx = text.find(sep)
         if 0 < idx < max_chars:
             return text[:idx + 1].strip()
     return text[:max_chars].strip()
 
 
-def extract_files(messages: list) -> list:
-    pattern = re.compile(r'[`\s]([A-Za-z0-9_/\\.-]+\.[a-z]{2,5})\b')
-    files = set()
-    for m in messages:
-        for match in pattern.findall(m["text"]):
-            if any(match.endswith(ext) for ext in ['.py', '.js', '.ts', '.json', '.md', '.sh', '.yml', '.yaml', '.html', '.css']):
-                files.add(match)
-    return list(files)[:6]
-
-
-def extract_what_done(messages: list) -> str:
-    user_msgs = [m for m in messages if m["role"] == "user"]
-    assistant_msgs = [m for m in messages if m["role"] == "assistant"]
+def extract_what_done(messages: list, labels: dict) -> str:
+    user = [m for m in messages if m["role"] == "user"]
+    assistant = [m for m in messages if m["role"] == "assistant"]
     lines = []
-    for m in user_msgs:
+    for m in user:
         if len(m["text"]) > 30:
-            lines.append(first_sentence(m["text"], 200))
+            lines.append(first_sentence(m["text"], 220))
             break
-    if assistant_msgs:
-        last = assistant_msgs[-1]["text"]
-        paragraphs = [p.strip() for p in last.split("\n\n") if len(p.strip()) > 30]
+    if assistant:
+        paragraphs = [p.strip() for p in assistant[-1]["text"].split("\n\n")
+                      if len(p.strip()) > 30]
         if paragraphs:
             lines.append(paragraphs[0][:300].replace("\n", " "))
-    return " — ".join(lines)[:500] if lines else "Work session."
+    return " — ".join(lines)[:600] if lines else labels["fallback"]
 
 
-def extract_next_step(messages: list) -> str:
-    keywords = ["next step", "próximo passo", "to do", "a seguir", "falta", "pendente"]
-    assistant_msgs = [m for m in messages if m["role"] == "assistant"]
-    for m in reversed(assistant_msgs[-4:]):
-        text_lower = m["text"].lower()
-        for kw in keywords:
-            if kw in text_lower:
-                for sentence in m["text"].split("."):
-                    if kw in sentence.lower() and len(sentence.strip()) > 15:
-                        return sentence.strip()[:250]
-    user_msgs = [m for m in messages if m["role"] == "user"]
-    if user_msgs:
-        return f"Continue from: {first_sentence(user_msgs[-1]['text'], 150)}"
-    return "Review session and continue."
+def extract_next_step(messages: list, kw: dict, labels: dict) -> str:
+    assistant = [m for m in messages if m["role"] == "assistant"]
+    found = _sentence_with(assistant, kw["next"], None, window=4)
+    if found:
+        return found
+    user = [m for m in messages if m["role"] == "user"]
+    if user:
+        return f"{labels['resume']}: {user[-1]['text'][:150]}"
+    return labels["check"]
 
 
-def detect_blocker(messages: list) -> str:
-    keywords = ["blocked", "bloqueado", "waiting", "aguardando", "pending", "pendente", "not tested", "não testado"]
-    for m in reversed(messages[-6:]):
-        text_lower = m["text"].lower()
-        for kw in keywords:
-            if kw in text_lower:
-                for sentence in m["text"].split("."):
-                    if kw in sentence.lower() and len(sentence.strip()) > 15:
-                        return sentence.strip()[:200]
-    return "None."
+def generate_brief(messages, slug, cfg) -> str:
+    lang = _lang(cfg)
+    labels = LABELS[lang]
+    kw = _keywords(cfg, lang)
+    files = extract_files(messages)
+    files_line = (f"\n**{labels['files']}:** "
+                  + ", ".join(f"`{f}`" for f in files)) if files else ""
+    return (
+        f"**{labels['date']}:** {datetime.now().strftime('%Y-%m-%d')}\n"
+        f"**{labels['project']}:** {slug}\n\n"
+        f"**{labels['done']}:** {extract_what_done(messages, labels)}\n"
+        f"{files_line}\n\n"
+        f"**{labels['decision']}:** "
+        f"{_sentence_with(messages, kw['decision'], labels['none_f'], min_len=20)}\n\n"
+        f"**{labels['next']}:** {extract_next_step(messages, kw, labels)}\n\n"
+        f"**{labels['blocker']}:** "
+        f"{_sentence_with(messages, kw['blocker'], labels['none_m'], window=6, cap=200)}"
+    )
 
 
-def save_brief(memory_dir: Path, slug: str, content: str, session_id: str):
-    briefs_dir = memory_dir / "session_briefs"
-    briefs_dir.mkdir(parents=True, exist_ok=True)
-    path = briefs_dir / f"{slug}.md"
-    frontmatter = f"---\nproject: {slug}\nsession: {session_id}\ndate: {datetime.now().strftime('%Y-%m-%d')}\n---\n"
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(frontmatter + content)
+def is_curated(path: Path) -> bool:
+    """True when the brief was written by hand rather than by this hook.
+
+    The earlier version of this check also required the brief to carry the id of
+    the session in progress. The intention was good — an old brief should still
+    be refreshable — but the condition was impossible to satisfy: whoever writes
+    a curated brief has no access to that id, so the only source was the file
+    itself, which holds the PREVIOUS session's id until this hook runs. Deriving
+    the id from the file you are about to overwrite is circular, and the result
+    was that hand-written briefs were destroyed on every single session.
+    """
+    try:
+        return "curated: true" in path.read_text(encoding="utf-8", errors="replace")[:600]
+    except Exception:
+        return False
 
 
-def notify(message: str):
-    """Print a subtle touch point notification."""
-    print(json.dumps({
-        "continue": True,
-        "suppressOutput": False,
-        "systemMessage": message
-    }))
+def mark_unsaved_session(path: Path, labels: dict) -> None:
+    """Append one dated line: there was a session after the curated brief.
+
+    Idempotent per DAY. This hook runs on every turn, not once at the end, so
+    appending per call would fill the file within a single session — and stamping
+    "ended without saving" moments after a save would simply be false. If the
+    curated brief is already from today there is nothing to warn about, and a
+    stale marker from a previous day is removed rather than stacked.
+    """
+    mark = "<!-- unsaved-session:"
+    today = datetime.now().strftime("%Y-%m-%d")
+    line = (f"\n{mark} {today} -->\n"
+            f"> ⚠️ {labels['warn'].format(d=today)}\n")
+    try:
+        txt = path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return
+    if f":** {today}" in txt[:900]:
+        if mark in txt:
+            path.write_text(txt[:txt.find(mark)].rstrip() + "\n", encoding="utf-8")
+        return
+    cut = txt.find(mark)
+    if cut != -1:
+        txt = txt[:cut].rstrip() + "\n"
+    try:
+        path.write_text(txt.rstrip() + "\n" + line, encoding="utf-8")
+    except Exception:
+        pass
+
+
+def save_brief(path: Path, slug: str, content: str, session_id: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frontmatter = (f"---\n"
+                   f"name: Brief — {slug}\n"
+                   f"description: Last session of project {slug}\n"
+                   f"type: project\n"
+                   f"originSessionId: {session_id}\n"
+                   f"---\n")
+    tmp = path.with_suffix(f".{os.getpid()}.tmp")
+    tmp.write_text(frontmatter + content, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def main():
@@ -162,37 +260,32 @@ def main():
     except Exception:
         sys.exit(0)
 
-    transcript_path = data.get("transcript_path") or data.get("transcriptPath", "")
+    transcript = data.get("transcript_path") or data.get("transcriptPath", "")
     cwd = data.get("cwd", "")
     session_id = data.get("session_id") or data.get("sessionId", "unknown")
+    quiet = json.dumps({"continue": True, "suppressOutput": True})
 
-    if not transcript_path or not os.path.exists(transcript_path):
-        print(json.dumps({"continue": True, "suppressOutput": True}))
+    if not transcript or not os.path.exists(transcript):
+        print(quiet)
         sys.exit(0)
 
-    messages = read_transcript(transcript_path)
-    user_msgs = [m for m in messages if m["role"] == "user"]
-
-    if len(user_msgs) < 2:
-        print(json.dumps({"continue": True, "suppressOutput": True}))
+    messages = read_transcript(transcript)
+    if len([m for m in messages if m["role"] == "user"]) < 2:
+        print(quiet)                      # too short to be worth a brief
         sys.exit(0)
 
-    slug = get_project_slug(cwd)
-    memory_dir = get_memory_dir(cwd)
-    files = extract_files(messages)
-    files_line = f"\n**Files touched:** {', '.join(f'`{f}`' for f in files)}" if files else ""
+    cfg = cfgmod.load()
+    slug = cfgmod.detect_project(cwd, cfg) or "session"
+    path = cfgmod.briefs_dir_for(cwd) / f"{slug}.md"
 
-    brief = (
-        f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n"
-        f"**Project:** {slug}\n\n"
-        f"**What was done:** {extract_what_done(messages)}\n"
-        f"{files_line}\n\n"
-        f"**Next step:** {extract_next_step(messages)}\n\n"
-        f"**Blocker:** {detect_blocker(messages)}"
-    )
+    if path.exists() and is_curated(path):
+        mark_unsaved_session(path, LABELS[_lang(cfg)])
+        print(quiet)
+        sys.exit(0)
 
-    save_brief(memory_dir, slug, brief, session_id)
-    notify(f"📝 Brief saved — {slug}")
+    save_brief(path, slug, generate_brief(messages, slug, cfg), session_id)
+    print(json.dumps({"continue": True, "suppressOutput": True,
+                      "systemMessage": f"📝 Brief saved — {slug}"}))
 
 
 if __name__ == "__main__":
