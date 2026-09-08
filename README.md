@@ -101,11 +101,12 @@ mistake happened anyway and deleted five scripts and five hook registrations.
 
 So the rule is narrow: **a practice that matters is a gate, or it is a wish.**
 
-Six of them ship: refuse a new file with nothing calling it; refuse a
+Seven of them ship: refuse a new file with nothing calling it; refuse a
 destructive shell command; refuse a write into someone else's project; refuse an
 edit that bloats an always-loaded instruction file; redact credential-shaped
-values out of every tool result before they reach the conversation; and save the
-memory directory to git on its own, refusing to save secrets.
+values out of every tool result before they reach the conversation; refuse the
+first action of a turn whose message was a QUESTION rather than an instruction;
+and save the memory directory to git on its own, refusing to save secrets.
 
 The redaction one exists because a third-party tool returned an access token
 inside a *successful* response, and it ended up in the transcript **15 times**
@@ -123,7 +124,7 @@ make            # all of it
 python engine/tests/test_memory.py             # 36 checks on the memory guards
 python engine/tests/golden_recall.py           # ranking + performance gate
 python engine/tests/golden_recall.py --mutate  # break it on purpose
-python method/gates/tests/test_gates.py        # 36 checks on the gates + mutation
+python method/gates/tests/test_gates.py        # 56 checks on the gates + mutation
 ```
 
 No pytest, no dependencies, and they run against synthetic corpora — never your
@@ -159,21 +160,47 @@ remove the memory.
 
 ---
 
-## Philosophy
+## Honestly: should you use this, or claude-mem?
 
-This started by studying [claude-mem](https://github.com/thedotmack/claude-mem),
-which runs a persistent local server, SQLite and ChromaDB for semantic search.
-It is a powerful piece of work.
+This project started by studying
+[claude-mem](https://github.com/thedotmack/claude-mem), and that is still the
+serious alternative. Checked today rather than remembered:
 
-This does the same core job with Python scripts and Markdown files. Nothing to
-keep running, nothing to break, nothing to pay for, and no service that can
-disappear and take your memory with it.
+| | claude-mem | this |
+|---|---|---|
+| users | **93,000+ stars** | **0** — nobody but the author has run it |
+| architecture | local worker service, SQLite, Chroma vector DB | 6 Python scripts and Markdown files |
+| runtimes needed | Node 20+, Bun, uv | Python 3.8 |
+| search | hybrid semantic + keyword | **lexical only** |
+| cost | free tier, with a paid subscription for hosted memory | none, ever |
+| agents supported | Claude Code, and several others | Claude Code only |
+| tests / CI stated | not in the README | 95 checks, mutation, 6 environments |
+| ships a working method | no | 7 gates that refuse |
+| ships lessons | no | 56 notes |
 
-The trade is real and worth stating plainly: **lexical search, not semantic.** Ask
-about "authentication" when your note says "login" and BM25 will not connect them;
-a vector store would. In exchange you get results you can explain, an index that
-rebuilds in seconds, zero infrastructure, and notes that stay yours in a format
-that will still open in ten years.
+**Use claude-mem if** you want semantic search, you use agents other than Claude
+Code, or you would rather rely on something thousands of people are running.
+Those are good reasons and this project does not beat any of them.
+
+**Use this if** you want no runtime to maintain, nothing to pay for, results you
+can explain, and notes in a format that will still open in ten years — or if the
+part you actually want is `method/` and `knowledge/`, which have no equivalent
+over there.
+
+### The trade, stated plainly
+
+**Lexical search, not semantic.** Ask about "authentication" when your note says
+"login" and BM25 will not connect them; a vector store would.
+
+That gap was measured here rather than assumed. Embeddings were built, tested,
+and **rejected** — a real gain (19 to 23 of 32) that still did not justify
+trading a self-contained 114 ms system for one needing a local model server,
+because the real usage log showed the hole was 5.8%, not the 81% a purpose-built
+stress test suggested. The reasoning and the condition that reopens it are in
+[`engine/docs/MEASUREMENTS.md`](engine/docs/MEASUREMENTS.md).
+
+**Zero users is a real fact about this project, not modesty.** It works, it is
+tested, and nobody has stress-tested it against a setup that is not its author's.
 
 ---
 

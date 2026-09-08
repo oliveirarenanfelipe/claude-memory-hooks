@@ -56,10 +56,11 @@ echo "  engine: 6 scripts copied"
 if [ "$LEVEL" = "full" ]; then
   mkdir -p "$GATES_DIR"
   for f in gate_lib.py no_orphan_files.py destructive_bash.py \
-           project_boundary.py context_budget.py snapshot.py redact_secrets.py; do
+           project_boundary.py context_budget.py snapshot.py redact_secrets.py \
+           question_is_analysis.py; do
     cp "$SRC/method/gates/$f" "$GATES_DIR/$f"
   done
-  echo "  method: 7 gate scripts copied"
+  echo "  method: 8 gate scripts copied"
 fi
 
 # The example is always refreshed; your own config.json is never overwritten,

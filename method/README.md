@@ -29,7 +29,7 @@ the whole reason gates work where checklists fail: a checklist fires when someon
 remembers to classify the situation, and the moment you are about to make the
 mistake is precisely the moment you have not classified it that way.
 
-## The six
+## The seven
 
 | file | fires when | refuses |
 |---|---|---|
@@ -38,6 +38,7 @@ mistake is precisely the moment you have not classified it that way.
 | `project_boundary.py` | a file is about to be written | a write into a project other than the open one |
 | `context_budget.py` | a watched instruction file is edited | an edit that pushes it past its size budget |
 | `redact_secrets.py` | a tool returns a result | nothing - it rewrites credential-shaped values out of the result before it reaches the conversation |
+| `question_is_analysis.py` | you write or run something | the FIRST action of a turn whose message was a question, not an instruction |
 | `snapshot.py` | a turn ends | nothing — it saves the memory directory to git, and refuses to save secrets |
 
 ## Two kinds of refusal, and the difference matters
@@ -64,7 +65,7 @@ prove it stays out of the way of the ordinary case:
 python method/gates/tests/test_gates.py
 ```
 
-36 checks, and four mutations that disarm each detector and require the
+56 checks, and five mutations that disarm each detector and require the
 behaviour to change. A gate that has only ever passed is not evidence.
 
 ## Install

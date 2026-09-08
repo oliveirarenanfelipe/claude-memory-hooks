@@ -170,21 +170,48 @@ a memória.
 
 ---
 
-## Filosofia
+## Honestamente: usar isto ou o claude-mem?
 
-Isto nasceu estudando o [claude-mem](https://github.com/thedotmack/claude-mem),
-que roda um servidor local permanente, SQLite e ChromaDB para busca semântica. É
-um trabalho poderoso.
+Este projeto nasceu estudando o
+[claude-mem](https://github.com/thedotmack/claude-mem), e ele continua sendo a
+alternativa séria. Conferido hoje, não lembrado:
 
-Aqui o mesmo trabalho central é feito com scripts Python e arquivos Markdown.
-Nada para manter rodando, nada para quebrar, nada para pagar, e nenhum serviço
-que possa sumir levando a sua memória junto.
+| | claude-mem | este |
+|---|---|---|
+| usuários | **93 mil estrelas** | **0** — ninguém além do autor rodou |
+| arquitetura | serviço local, SQLite, banco vetorial Chroma | 6 scripts Python e arquivos Markdown |
+| o que precisa instalar | Node 20+, Bun, uv | Python 3.8 |
+| busca | híbrida: semântica + palavra | **só léxica** |
+| custo | camada grátis, com assinatura paga para memória hospedada | nenhum, nunca |
+| agentes | Claude Code e vários outros | só Claude Code |
+| testes / CI declarados | não constam no README | 75 checagens, mutação, 6 ambientes |
+| traz um método funcionando | não | 6 travas que recusam |
+| traz lições | não | 56 notas |
 
-A troca é real e merece ser dita na cara: **busca léxica, não semântica.** Se
-você perguntar por "autenticação" e a sua nota disser "login", o BM25 não liga as
-duas — um banco vetorial ligaria. Em troca, você recebe resultados que consegue
-explicar, um índice que reconstrói em segundos, zero infraestrutura, e notas que
-continuam suas num formato que ainda vai abrir daqui a dez anos.
+**Use o claude-mem se** você quer busca semântica, usa agentes além do Claude
+Code, ou prefere depender de algo que milhares de pessoas rodam. São bons
+motivos, e este projeto não vence nenhum deles.
+
+**Use este se** você não quer nada rodando para manter, nada para pagar,
+resultados que consegue explicar, e notas num formato que ainda abre daqui a dez
+anos — ou se o que você quer é o `method/` e o `knowledge/`, que não têm
+equivalente lá.
+
+### A troca, dita na cara
+
+**Busca léxica, não semântica.** Se você perguntar por "autenticação" e a nota
+disser "login", o BM25 não liga as duas; um banco vetorial ligaria.
+
+Essa lacuna foi **medida aqui**, não presumida. Os vetores foram construídos,
+testados e **reprovados** — ganho real (19 para 23 de 32) que mesmo assim não
+justificava trocar um sistema autossuficiente de 114 ms por um que exige servidor
+de modelo local, porque o log de uso real mostrou que o buraco era 5,8%, e não os
+81% que um teste de estresse feito para a ocasião sugeria. O raciocínio e a
+condição que reabre isso estão em
+[`engine/docs/MEASUREMENTS.md`](engine/docs/MEASUREMENTS.md).
+
+**Zero usuários é um fato real deste projeto, não modéstia.** Ele funciona, está
+testado, e ninguém o submeteu a uma instalação que não seja a do autor.
 
 ---
 

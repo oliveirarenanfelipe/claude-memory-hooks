@@ -282,6 +282,75 @@ _denied = subprocess.run([sys.executable, os.path.join(GATES, "redact_secrets.py
 check("it rewrites and NEVER denies",
       b'"permissionDecision"' not in _denied.stdout and _denied.returncode == 0)
 
+print("\n== question_is_analysis: a question is not an instruction ==")
+import question_is_analysis as qia   # noqa: E402
+
+# Reflections that must NOT be executed.
+for message in [
+    "do we really have a good product here?",
+    "is it worth implementing this now",
+    "does it make sense to build a gate for this",
+    "wouldn't it be better to use another format",
+    "should we refactor this module?",
+    "what do you think of this approach",
+]:
+    check("question: %r" % message[:44], qia.classify(message) == "question",
+          qia.classify(message))
+
+# Explicit instructions that must go through untouched. This half is what keeps
+# the gate installed: one false stop on a real instruction, repeated daily, and
+# somebody removes it.
+for message in [
+    "go ahead and implement it",
+    "fix it",
+    "can you fix this?",
+    "rename that function",
+    "add the email field to the form",
+    "proceed",
+]:
+    check("command: %r" % message[:44], qia.classify(message) == "command",
+          qia.classify(message))
+
+check("a plain statement is neither",
+      qia.classify("the deploy broke in production") == "neutral",
+      qia.classify("the deploy broke in production"))
+
+# A determiner in front turns a verb into a noun. Without this, describing what
+# happened is read as ordering it to happen — which silently removes the
+# protection on exactly the kind of message this gate exists for. Found by
+# probing outside the suite, not by the suite itself.
+for message in ["the update failed last night",
+                "a rename would break the imports",
+                "that change is already in production"]:
+    check("report, not order: %r" % message[:40],
+          qia.classify(message) == "neutral", qia.classify(message))
+for message in ["update the config file", "please update the readme"]:
+    check("order, not report: %r" % message[:40],
+          qia.classify(message) == "command", qia.classify(message))
+
+# The substring trap, which this repository had already met once elsewhere: a
+# reflection containing an action verb inside a longer word, or after a
+# reflection opener, must stay a question.
+check("an action verb inside a longer word does not make it an instruction",
+      qia.classify("is it worth doing this") == "question",
+      qia.classify("is it worth doing this"))
+
+# Reading is never blocked — a question deserves exactly that.
+_read_event = {"tool_name": "Read", "prompt": "should we change this?",
+               "tool_input": {"file_path": "x.py"}, "session_id": RUN_ID + "-r"}
+check("reading is never blocked",
+      run_gate("question_is_analysis.py", _read_event) is None)
+
+_write_event = {"tool_name": "Write", "prompt": "should we change this?",
+                "tool_input": {"file_path": "x.py"}, "session_id": RUN_ID + "-w1"}
+check("the first write after a question is refused",
+      run_gate("question_is_analysis.py", _write_event) == "deny")
+
+_cmd_event = {"tool_name": "Write", "prompt": "go ahead and change it",
+              "tool_input": {"file_path": "x.py"}, "session_id": RUN_ID + "-w2"}
+check("an explicit instruction is never refused",
+      run_gate("question_is_analysis.py", _cmd_event) is None)
+
 print("\n== CLAUDE_HOME is honoured (a sandboxed run must stay sandboxed) ==")
 import gate_lib as gl_check      # noqa: E402
 import snapshot as snap          # noqa: E402
@@ -414,6 +483,31 @@ try:
     print("           it is still redacted, something else is doing the work.")
     if not caught:
         survived.append("redact_secrets pattern list")
+
+    # Word-boundary matching, disarmed. This exists because the substring version
+    # was the first thing written and it silently misread reflections as orders.
+    keep_contains = qia._contains
+    qia._contains = lambda text, marker: marker in text
+    try:
+        misread = qia.classify("is it worth doing this and fixing that")
+    finally:
+        qia._contains = keep_contains
+    # With substring matching the reflection openers still save this one, so the
+    # mutation is checked where it actually bites: a marker inside a longer word,
+    # with no opener in front of it.
+    qia._contains = lambda text, marker: marker in text
+    try:
+        misread2 = qia.classify("i keep proceeding on the wrong assumption")
+    finally:
+        qia._contains = keep_contains
+    caught = misread2 == "command"
+    print("  [%s] question_is_analysis: word-boundary matching disarmed"
+          % ("CAUGHT" if caught else "SURVIVED"))
+    print("           With substring matching, 'proceeding' must be misread as")
+    print("           the instruction 'proceed'. If it is not, the boundary is")
+    print("           not what is doing the work.")
+    if not caught:
+        survived.append("question_is_analysis word boundary")
 finally:
     for d in repos:
         shutil.rmtree(d, ignore_errors=True)
