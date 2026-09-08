@@ -13,7 +13,7 @@
 |---|---|---|
 | **[`engine/`](engine/)** | the memory: remembers across sessions, and recalls what is relevant to what you just typed | ready |
 | **[`method/`](method/)** | how the work gets done — as gates that **refuse**, not as advice | ready |
-| **[`knowledge/`](knowledge/)** | lessons that survive the project they came from, shipped as notes the engine indexes | in progress, in blocks |
+| **[`knowledge/`](knowledge/)** | 56 lessons that survive the project they came from, shipped as notes the engine indexes | ready |
 
 You can take just the first. The three together are the point: a memory with
 nothing worth remembering is an empty filing cabinet, and a method nobody

@@ -2,7 +2,24 @@
 
 > O Claude Code lembra. Sem servidor, sem banco, sem chave de API, sem dependências.
 
-[Read in English](README.md) · [De onde vêm os números](docs/MEASUREMENTS.md)
+[Read in English](README.md)
+
+---
+
+## Tr�s partes, uma instala��o
+
+| | o que � | estado |
+|---|---|---|
+| **[`engine/`](engine/)** | a mem�ria: lembra entre sess�es e traz o que � relevante ao que voc� digitou | pronto |
+| **[`method/`](method/)** | como o trabalho � feito � como travas que **recusam**, n�o como conselho | pronto |
+| **[`knowledge/`](knowledge/)** | 56 li��es que sobrevivem ao projeto onde nasceram, como notas que o motor indexa | pronto |
+
+D� para levar s� a primeira. As tr�s juntas s�o o ponto: mem�ria sem nada que
+valha lembrar � arquivo vazio, e m�todo que ningu�m faz cumprir � desejo.
+
+Instala��o: `bash install.sh` traz a mem�ria; `bash install.sh --full` traz
+tamb�m o m�todo. O `--full` � opcional de prop�sito � as travas **recusam**
+coisas, e isso deve ser decis�o, n�o surpresa. · [De onde vêm os números](docs/MEASUREMENTS.md)
 
 ---
 

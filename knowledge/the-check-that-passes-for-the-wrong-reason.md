@@ -1,6 +1,6 @@
 ---
 name: the-check-that-passes-for-the-wrong-reason
-description: A green check proves nothing until you have seen it fail. Break the thing on purpose: if the check stays green, it was never watching what you think it was.
+description: A green check proves nothing until you have seen it fail. Break the thing on purpose: if the check stays green, it was never watching what you think it was. How do I know my test would actually fail if the code broke? Mutation testing: break it on purpose, deliberately, and watch the check go red.
 scope: global
 type: concept
 ---

@@ -1,6 +1,6 @@
 ---
 name: one-way-check-approves-the-damage
-description: A check that only measures the direction you are pushing will APPROVE the harm the same change causes on the other side. Every correction that moves a value needs a pair of checks.
+description: A check that only measures the direction you are pushing will APPROVE the harm the same change causes on the other side. Every correction that moves a value needs a pair of checks. Brightness, sharpening, compression: the assert passes and the output is visibly worse because the check only watches the direction you pushed.
 scope: global
 type: concept
 ---

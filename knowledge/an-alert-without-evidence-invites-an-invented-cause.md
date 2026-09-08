@@ -1,6 +1,6 @@
 ---
 name: an-alert-without-evidence-invites-an-invented-cause
-description: An alert that says something is wrong without saying WHAT forces whoever reads it to supply a cause from imagination — and a plausible invented cause is accepted and acted on.
+description: An alert that says something is wrong without saying WHAT forces whoever reads it to supply a cause from imagination — and a plausible invented cause is accepted and acted on. A warning that does not say WHICH item, which record or which customer is affected, so whoever reads it guesses the cause.
 scope: global
 type: concept
 ---
