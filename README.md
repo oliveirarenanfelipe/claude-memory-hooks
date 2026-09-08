@@ -3,6 +3,11 @@
 > Claude Code remembers, and works the way you decided it should.
 > No server, no database, no API key, no dependencies.
 
+[![tests](https://github.com/oliveirarenanfelipe/claude-memory-hooks/actions/workflows/test.yml/badge.svg)](https://github.com/oliveirarenanfelipe/claude-memory-hooks/actions/workflows/test.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](#)
+
 [Leia em Português](README.pt-br.md)
 
 ---
@@ -174,4 +179,9 @@ that will still open in ten years.
 
 ## License
 
-MIT — do whatever you want with it.
+MIT — see [LICENSE](LICENSE). Do whatever you want with it.
+
+Also here: [CHANGELOG](CHANGELOG.md) · [SECURITY](SECURITY.md) ·
+[CLAUDE.md](CLAUDE.md), which gives your assistant the context for this
+repository the moment you open it — the same thing the project does for your own
+work.
