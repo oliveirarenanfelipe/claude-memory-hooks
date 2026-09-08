@@ -22,3 +22,6 @@
 2026-09-06 18:33:39	index	c-demo-code-api-server	19ms	'how do refresh tokens get rotated'	[(6.4, 'api-server', 'project_auth_tokens.md'), (2.8, 'handbook', 'incident_response.md'), (1.8, 'web-app', 'project_design_system.md'), (1.0, 'field-notes', 'note_conference_talk.md')]
 2026-09-06 18:33:39	index	api-server	6ms	'how do refresh tokens get rotated'	[(14.8, 'api-server', 'project_auth_tokens.md'), (2.8, 'handbook', 'incident_response.md'), (1.8, 'web-app', 'project_design_system.md'), (1.0, 'field-notes', 'note_conference_talk.md')]
 2026-09-06 18:33:39	noindex->keywords	5ms	'how do refresh tokens get rotated'
+2026-09-08 11:51:28	index	c-demo-code-api-server	27ms	'how do refresh tokens get rotated'	[(6.4, 'api-server', 'project_auth_tokens.md'), (2.8, 'handbook', 'incident_response.md'), (1.8, 'web-app', 'project_design_system.md'), (1.0, 'field-notes', 'note_conference_talk.md')]
+2026-09-08 11:51:28	index	api-server	11ms	'how do refresh tokens get rotated'	[(14.8, 'api-server', 'project_auth_tokens.md'), (2.8, 'handbook', 'incident_response.md'), (1.8, 'web-app', 'project_design_system.md'), (1.0, 'field-notes', 'note_conference_talk.md')]
+2026-09-08 11:51:28	noindex->keywords	7ms	'how do refresh tokens get rotated'
