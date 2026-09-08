@@ -42,7 +42,30 @@ import sys
 import tempfile
 import time
 
-LOG = os.path.join(os.path.expanduser("~"), ".claude", "gates.log")
+def claude_home():
+    """The Claude directory, honouring CLAUDE_HOME.
+
+    This is not a convenience. Without it every gate silently addresses the
+    REAL home directory regardless of what the caller asked for — which means a
+    test run, a second profile or a sandboxed install all operate on the live
+    memory while appearing to operate on their own copy.
+
+    Found exactly that way: an end-to-end test pointed at a throwaway directory
+    and the snapshot gate resolved to the real one anyway. It did not commit,
+    only because an unrelated interval had not elapsed.
+
+    It is also the failure described in `knowledge/the-first-case-becomes-the-
+    default-silently.md`: the original setup was the only one that existed, so
+    its location was written as a constant rather than as a parameter.
+    """
+    return os.environ.get("CLAUDE_HOME") or os.path.join(os.path.expanduser("~"),
+                                                         ".claude")
+
+
+# Resolved per call rather than at import, so a process that changes CLAUDE_HOME
+# after importing (a test harness, a wrapper) still writes where it asked to.
+def log_path():
+    return os.path.join(claude_home(), "gates.log")
 
 
 def stdout_utf8():
@@ -79,8 +102,9 @@ def bash_command(event):
 def log(gate, decision, target, reason):
     """Record only. A logger that fails must never bring a guard down."""
     try:
-        os.makedirs(os.path.dirname(LOG), exist_ok=True)
-        with io.open(LOG, "a", encoding="utf-8") as fh:
+        path = log_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with io.open(path, "a", encoding="utf-8") as fh:
             fh.write("\t".join([time.strftime("%Y-%m-%d %H:%M:%S"), gate,
                                 decision, str(target)[:120],
                                 str(reason).replace("\n", " ")[:150]]) + "\n")
@@ -132,8 +156,7 @@ def already_flagged(gate, session_id, key):
 
 def load_config():
     """`~/.claude/memory-hooks/config.json`, or {}. Never raises."""
-    path = os.path.join(os.path.expanduser("~"), ".claude",
-                        "memory-hooks", "config.json")
+    path = os.path.join(claude_home(), "memory-hooks", "config.json")
     try:
         with io.open(path, encoding="utf-8") as fh:
             return json.load(fh)

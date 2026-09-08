@@ -282,10 +282,35 @@ _denied = subprocess.run([sys.executable, os.path.join(GATES, "redact_secrets.py
 check("it rewrites and NEVER denies",
       b'"permissionDecision"' not in _denied.stdout and _denied.returncode == 0)
 
-print("\n== snapshot: saves, and REFUSES to save a secret ==")
+print("\n== CLAUDE_HOME is honoured (a sandboxed run must stay sandboxed) ==")
+import gate_lib as gl_check      # noqa: E402
 import snapshot as snap          # noqa: E402
 import destructive_bash as db    # noqa: E402
 import redact_secrets as rs      # noqa: E402
+
+# This case exists because the opposite happened: an end-to-end test pointed at
+# a throwaway directory and the snapshot resolved to the REAL one anyway. It did
+# not commit, only because an unrelated interval had not elapsed. A test that
+# believes it is sandboxed and is not is worse than no test.
+_sandbox = os.path.join(tempfile.gettempdir(), "gates_home_check")
+os.makedirs(_sandbox, exist_ok=True)
+_previous_home = os.environ.get("CLAUDE_HOME")
+os.environ["CLAUDE_HOME"] = _sandbox
+try:
+    check("claude_home() follows CLAUDE_HOME",
+          gl_check.claude_home() == _sandbox, gl_check.claude_home())
+    check("the gate log follows it too",
+          gl_check.log_path().startswith(_sandbox), gl_check.log_path())
+    check("the snapshot target follows it too",
+          snap.config()[0] == _sandbox, snap.config()[0])
+finally:
+    if _previous_home is None:
+        os.environ.pop("CLAUDE_HOME", None)
+    else:
+        os.environ["CLAUDE_HOME"] = _previous_home
+    shutil.rmtree(_sandbox, ignore_errors=True)
+
+print("\n== snapshot: saves, and REFUSES to save a secret ==")
 
 
 def new_repo():

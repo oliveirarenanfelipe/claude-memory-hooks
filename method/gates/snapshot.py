@@ -77,7 +77,13 @@ SECRET_PATTERNS = [
 
 def config():
     cfg = gl.gate_config(GATE)
-    return (os.path.expanduser(str(cfg.get("path") or DEFAULT_PATH)),
+    # No configured path means "the Claude directory" — and WHICH one that is
+    # must honour CLAUDE_HOME, or every sandboxed run silently targets the
+    # real one. Expanding the literal home path was exactly that bug, found
+    # by an end-to-end test that pointed at a throwaway directory and got
+    # the live one back.
+    default = cfg.get("path") or gl.claude_home()
+    return (os.path.expanduser(str(default)),
             int(cfg.get("interval_minutes") or DEFAULT_INTERVAL),
             tuple(cfg.get("structural") or DEFAULT_STRUCTURAL))
 
