@@ -238,9 +238,54 @@ try:
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 
+print("\n== redact_secrets: no secret enters the conversation ==")
+
+
+def run_redact(tool_response):
+    payload = {"tool_name": "Bash", "tool_response": tool_response}
+    process = subprocess.run(
+        [sys.executable, os.path.join(GATES, "redact_secrets.py")],
+        input=json.dumps(payload).encode("utf-8"), capture_output=True, timeout=60)
+    out = process.stdout.decode("utf-8", "replace").strip()
+    if not out:
+        return None
+    return json.loads(out).get("modifiedToolResponse")
+
+
+TOKEN = "ghp_" + "A" * 36
+# The leak that produced this hook: a token inside a URL, in a SUCCESSFUL result.
+LEAK_URL = "https://api.example.com/v1/items?limit=50&access_token=" + TOKEN + "&after=xyz"
+cleaned = run_redact(LEAK_URL)
+check("a token in a URL is redacted",
+      cleaned is not None and TOKEN not in cleaned, str(cleaned)[:80])
+check("and the rest of the URL survives",
+      cleaned is not None and "api.example.com" in cleaned and "after=xyz" in cleaned,
+      str(cleaned)[:100])
+check("and it still shows WHERE the value was",
+      cleaned is not None and "access_token=" in cleaned, str(cleaned)[:100])
+check("a bare token is redacted",
+      TOKEN not in str(run_redact("here is the token " + TOKEN + " use it")))
+JWT = "eyJhbGciOiJIUzI1NiJ9." + "b" * 40 + "." + "c" * 20
+check("a JWT is redacted", JWT not in str(run_redact("Authorization: Bearer " + JWT)))
+check("a private key block is redacted",
+      "MIIEvQ" not in str(run_redact(
+          "-----BEGIN RSA PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END RSA PRIVATE KEY-----")))
+check("ordinary output is left completely alone",
+      run_redact("ok: 12 files changed, 340 insertions(+)") is None)
+check("a short phrase that merely says 'key' is not touched",
+      run_redact("the key is in the drawer") is None)
+
+_denied = subprocess.run([sys.executable, os.path.join(GATES, "redact_secrets.py")],
+                         input=json.dumps({"tool_name": "Bash",
+                                           "tool_response": TOKEN}).encode(),
+                         capture_output=True, timeout=60)
+check("it rewrites and NEVER denies",
+      b'"permissionDecision"' not in _denied.stdout and _denied.returncode == 0)
+
 print("\n== snapshot: saves, and REFUSES to save a secret ==")
 import snapshot as snap          # noqa: E402
 import destructive_bash as db    # noqa: E402
+import redact_secrets as rs      # noqa: E402
 
 
 def new_repo():
@@ -330,6 +375,20 @@ try:
     print("           With no verbs, a destructive command must stop being flagged.")
     if still:
         survived.append("destructive verb list")
+
+    keep_patterns = rs.PATTERNS
+    rs.PATTERNS = []
+    try:
+        text_after, kinds = rs.redact("token " + TOKEN)
+    finally:
+        rs.PATTERNS = keep_patterns
+    caught = TOKEN in text_after and not kinds
+    print("  [%s] redact_secrets: pattern list emptied"
+          % ("CAUGHT" if caught else "SURVIVED"))
+    print("           With no patterns the token MUST come through untouched. If")
+    print("           it is still redacted, something else is doing the work.")
+    if not caught:
+        survived.append("redact_secrets pattern list")
 finally:
     for d in repos:
         shutil.rmtree(d, ignore_errors=True)

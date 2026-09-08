@@ -45,7 +45,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE_SCRIPTS = ["memory_config.py", "memory_lib.py", "session_context.py",
                   "prompt_memory.py", "auto_brief.py", "reindex_memory.py"]
 GATE_SCRIPTS = ["gate_lib.py", "no_orphan_files.py", "destructive_bash.py",
-                "project_boundary.py", "context_budget.py", "snapshot.py"]
+                "project_boundary.py", "context_budget.py", "snapshot.py",
+                "redact_secrets.py"]
 ALL_SCRIPTS = ENGINE_SCRIPTS + GATE_SCRIPTS
 
 # (event, matcher or None, folder, script, extra args, timeout seconds)
@@ -62,6 +63,9 @@ GATE_HOOKS = [
     ("PreToolUse", "Edit|Write", "gates", "project_boundary.py", "", 15),
     ("PreToolUse", "Edit|Write", "gates", "context_budget.py", "", 15),
     ("Stop", None, "gates", "snapshot.py", "", 120),
+    # PostToolUse, not PreToolUse: it rewrites the RESULT, so it has to run
+    # after the tool, and it never blocks.
+    ("PostToolUse", None, "gates", "redact_secrets.py", "", 15),
 ]
 
 

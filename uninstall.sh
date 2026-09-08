@@ -30,6 +30,7 @@ for f in memory_config.py memory_lib.py session_context.py prompt_memory.py \
   rm -f "$CLAUDE_DIR/hooks/$f"
 done
 rm -f "$CLAUDE_DIR/commands/memory-setup.md"
+rm -f "$CLAUDE_DIR/commands/memory-save.md"
 
 # Derived files only: the index and the recall log are rebuilt from the notes,
 # so deleting them loses nothing that cannot be regenerated.

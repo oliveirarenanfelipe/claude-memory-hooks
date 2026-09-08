@@ -183,3 +183,47 @@ index has grown past what the current budget can carry.
 To measure your own recall rather than the fixtures', read `hooks/recall.log`:
 each line records the engine, the detected project, the elapsed milliseconds, the
 prompt, and which notes were injected — or the reason nothing was.
+
+---
+
+## Semantic search: measured, and rejected
+
+The obvious upgrade to a lexical engine is embeddings — so that "authentication"
+finds a note that says "login". It was built, measured, and **not adopted**. The
+reasoning is worth more than the feature would have been.
+
+**The gain was real.** On a 32-question benchmark, a hybrid of BM25 plus a
+multilingual embedding model went from **19 to 23 correct**, with **zero
+regressions**. On questions deliberately phrased without the note's own
+vocabulary, it went from 3 to 7 out of 16.
+
+**And it still did not justify itself**, for one reason: the problem had been
+sized by a stress test built for the occasion — questions written specifically to
+avoid the words in the notes — while the real usage log said something else.
+
+| | |
+|---|---|
+| questions in the constructed stress test that BM25 failed | **81%** |
+| prompts in **2,683 real ones** where recall failed to find anything | **5.8%** |
+
+The hole was 5.8%, not 81%. People search using the vocabulary of the subject,
+because they are the ones who wrote the notes. And even the best hybrid
+configuration still left **9 of 16** of those adversarial questions failing — so
+it did not close the hole it was built for either.
+
+What it would have cost: a self-contained system that answers in **114 ms**, has
+no dependencies and rebuilds itself in two minutes, replaced by one requiring a
+local model server and a two-hour index build.
+
+**The decision, and its reopening condition:** rejected. Revisit if the `nohit`
+rate in `recall.log` rises above roughly **15%**. That number is in the log
+already — no new instrumentation is needed to know when the answer changes.
+
+**The cheaper fix that was adopted instead:** write the vocabulary people
+actually use into the note's `description`, which is indexed alongside the body.
+Measured on this repository's own 56 shipped lessons: **51 of 56** returned first
+before, **55 of 56** after, with no engine change.
+
+That is the general shape of the trade, and it is why this project stays lexical:
+a smaller improvement that costs nothing beats a larger one that costs the
+property the whole design was chosen for.

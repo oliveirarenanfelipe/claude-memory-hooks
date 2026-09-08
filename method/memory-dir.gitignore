@@ -1,0 +1,82 @@
+# What goes into the git history of your Claude memory directory.
+#
+# Installed by install.sh --full when you accept the snapshot setup.
+#
+# STRATEGY: an ALLOW list. Ignore everything, then permit what was checked.
+# Measured reason: this directory can hold a gigabyte across tens of thousands of
+# files, most of it session transcripts. A deny list would let through whatever
+# nobody thought of — and the cost of being wrong here is committing a secret or
+# a gigabyte of logs, neither of which comes back out of git history easily.
+
+# ---- ignore everything by default ----
+/*
+
+# ---- the controls themselves ----
+!/.gitignore
+!/.gitattributes
+
+# ---- your configuration ----
+!/settings.json
+
+# ---- the scripts: code only, never data ----
+!/hooks/
+/hooks/*
+!/hooks/*.py
+!/hooks/*.md
+/hooks/*.bak*
+/hooks/*.log
+/hooks/*.log.*
+
+!/gates/
+/gates/*
+!/gates/*.py
+!/gates/*.md
+
+# ---- what you type, and what gets triggered by subject ----
+!/commands/
+!/agents/
+!/rules/
+!/skills/
+/skills/**/models/
+/skills/**/node_modules/
+/skills/**/.venv/
+
+# ---- the memories: only the memory/ folder of each project ----
+# The rest of projects/ is session transcripts — logs, not memory, and by far
+# the largest thing in here.
+!/projects/
+/projects/*
+!/projects/*/
+/projects/*/*
+!/projects/*/memory/
+/projects/_index/
+
+# ---- SECRETS: never, under any circumstance ----
+# A secret that reaches git history does not come back out.
+/.credentials.json
+**/.credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+**/credentials.json
+**/client_secret*.json
+**/token.json
+**/*oauth*.json
+
+# ---- derived, cache, and heavy binaries ----
+*.bak
+*.bak-*
+*.tmp
+__pycache__/
+*.pyc
+*.onnx
+*.pyd
+*.dll
+*.so
+*.zip
+*.mp4
+*.mp3
+*.wav

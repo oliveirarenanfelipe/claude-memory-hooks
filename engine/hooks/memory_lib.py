@@ -479,19 +479,45 @@ def _weight(m, current_project: str) -> float:
 
 
 def _top_k_distinct(out, top_k: int):
-    """Cut the top-k counting FILES, not fragments.
+    """Cut the top-k counting FILES, not fragments — and cap each layer.
 
-    Large notes are sliced, so one file can occupy several of the five slots.
-    Without this, penalising other projects makes repetition WORSE: removing
-    competitors just lets more slices of the same document rise. Measured across
-    40 prompts: 4.65 -> 4.45 distinct files without dedup, 5.00/5 with it.
+    Two separate protections, both measured, both necessary:
+
+    **Dedup by file.** Large notes are sliced, so one file can occupy several of
+    the five slots. Without this, penalising other projects makes repetition
+    WORSE: removing competitors just lets more slices of the same document rise.
+    Measured across 40 prompts: 4.65 -> 4.45 distinct files without dedup,
+    5.00/5 with it.
+
+    **A cap per layer.** A layer can be large and uniform — a manual, a set of
+    standards, a captured archive — and a query touching its vocabulary can hand
+    it every slot. Measured the first day a layer was added: one query returned
+    the new layer in all FIVE positions and evicted the project's own notes
+    entirely, reintroducing the exact defect dedup had just fixed.
+
+    The cap is per layer NAME, not per file, because a layer's documents are
+    usually several files saying adjacent things. Set `max_slots` on the layer;
+    the default leaves it uncapped, because a small layer does not need one.
     """
     seen, res = set(), []
+    used_by_layer = defaultdict(int)
+    caps = {}
+    for layer in (cfgmod.load().get("layers") or []):
+        cap = layer.get("max_slots")
+        if cap is not None:
+            caps[layer.get("name")] = int(cap)
+
     for s, m in out:
+        layer = m.get("layer")
+        if layer is not None and layer in caps:
+            if used_by_layer[layer] >= caps[layer]:
+                continue
         key = m.get("file")
         if key in seen:
             continue
         seen.add(key)
+        if layer is not None:
+            used_by_layer[layer] += 1
         res.append((s, m))
         if len(res) >= top_k:
             break

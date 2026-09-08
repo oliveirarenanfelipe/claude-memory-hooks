@@ -28,6 +28,11 @@ import memory_config as cfgmod          # noqa: E402
 CODE_EXTS = ('.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.sh', '.rb',
              '.go', '.rs', '.java', '.sql', '.yml', '.yaml', '.html', '.css', '.toml')
 
+# Messages shorter than this are dropped as noise ("ok", "yes", "thanks"). The
+# number is not sacred; it is named so that the code that reports a skipped
+# brief can quote it, instead of the person having to guess why nothing happened.
+MIN_MESSAGE_CHARS = 16
+
 # Phrases that mark a blocker / a decision / a next step, per language. Override
 # with `brief_keywords` in config.json to match how you actually write.
 BRIEF_KEYWORDS = {
@@ -107,7 +112,8 @@ def read_transcript(path: str) -> list:
                     elif isinstance(content, str):
                         text = content
                     text = text.strip()
-                    if text and len(text) > 15 and not text.startswith("<tool_result"):
+                    if (text and len(text) >= MIN_MESSAGE_CHARS
+                            and not text.startswith("<tool_result")):
                         messages.append({"role": role, "text": text})
                 except Exception:
                     pass
@@ -270,8 +276,23 @@ def main():
         sys.exit(0)
 
     messages = read_transcript(transcript)
-    if len([m for m in messages if m["role"] == "user"]) < 2:
-        print(quiet)                      # too short to be worth a brief
+    # A session with too little in it does not produce a useful brief. But the
+    # threshold used to be silent, and silence here is indistinguishable from
+    # "it worked" — someone who answers "ok", "yes", "do it" can close a real
+    # session and get no brief at all, with nothing said. Caught in testing: a
+    # four-message conversation produced nothing because one reply was six
+    # characters long and fell under the length filter in read_transcript.
+    #
+    # So: still no brief, and now it SAYS so. The message costs one line and
+    # turns an invisible gap into a fact the person can act on.
+    user_messages = [m for m in messages if m["role"] == "user"]
+    if len(user_messages) < 2:
+        print(json.dumps({
+            "continue": True, "suppressOutput": True,
+            "systemMessage": ("No brief written — this session had %d substantial "
+                              "message(s) from you and needs 2. Short replies "
+                              "(under %d characters) do not count."
+                              % (len(user_messages), MIN_MESSAGE_CHARS))}))
         sys.exit(0)
 
     cfg = cfgmod.load()

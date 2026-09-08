@@ -1,0 +1,21 @@
+# Exact bytes, always.
+#
+# Why this file exists, measured: `git init` on Windows turns on
+# core.autocrlf=true. With that, git STORES a file with LF and HANDS IT BACK
+# with CRLF. The reversal proof caught it immediately — a script stored at 1,356
+# bytes came back at 1,394, a difference of exactly 38 bytes for 38 lines. On a
+# corpus of 2,615 files, 1,003 were affected.
+#
+# This is a safety backup, not a collaborative code repository. The only thing it
+# promises is to hand the file back EXACTLY as it was. A backup that alters what
+# it returns is not a backup — and the alteration is invisible: the file still
+# works, `git status` is permanently dirty, and nobody suspects anything.
+#
+# `-text` disables end-of-line conversion in both directions.
+* -text
+
+*.pkl binary
+*.pyc binary
+*.png binary
+*.jpg binary
+*.pdf binary

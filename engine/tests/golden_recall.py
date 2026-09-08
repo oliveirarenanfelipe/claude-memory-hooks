@@ -211,6 +211,48 @@ def run_budget(ml, cfgmod, quiet=False):
 # ---------------------------------------------------------------------------
 # mutation: break it on purpose and demand that the gate notices
 # ---------------------------------------------------------------------------
+def run_layer_cap(quiet=False):
+    """A layer with max_slots must not take more than that many of the top-k.
+
+    The failure this protects against, measured the first day a layer was added:
+    one query returned the new layer in ALL FIVE positions and evicted the
+    project's own notes entirely — reintroducing the exact defect that dedup had
+    just fixed, through a different door.
+    """
+    query = "code review testing deploys incident commander timeline"
+    failures = []
+
+    cfgmod, ml = fx.setup(layers=[{
+        "name": "handbook", "path": str(fx.FIXTURE_HOME / "handbook"),
+        "mode": "flat", "scope": "global"}])
+    fx.fresh_index(ml)
+    uncapped = ml.bm25_search_idx(query, ml.load_index(), "api-server", top_k=5)
+    n_uncapped = sum(1 for _s, m in uncapped if m.get("layer") == "handbook")
+
+    cfgmod, ml = fx.setup(layers=[{
+        "name": "handbook", "path": str(fx.FIXTURE_HOME / "handbook"),
+        "mode": "flat", "scope": "global", "max_slots": 1}])
+    fx.fresh_index(ml)
+    capped = ml.bm25_search_idx(query, ml.load_index(), "api-server", top_k=5)
+    n_capped = sum(1 for _s, m in capped if m.get("layer") == "handbook")
+
+    # The case has to actually exercise the risk: if the layer never took more
+    # than one slot to begin with, the cap proved nothing.
+    ok = n_uncapped >= 2 and n_capped <= 1
+    if not ok:
+        why = ("query no longer fills 2+ slots with the layer" if n_uncapped < 2
+               else "cap did not hold")
+        failures.append((query, "layer cap (%s)" % why, 1, n_capped))
+    if not quiet:
+        print("\n== LAYER CAP (one layer must not take every slot) ==")
+        print("  [%s] handbook took %d slot(s) uncapped -> %d with max_slots=1"
+              % ("PASS" if ok else "FAIL", n_uncapped, n_capped))
+
+    cfgmod, ml = fx.setup()          # restore the standard fixture config
+    fx.fresh_index(ml)
+    return failures
+
+
 MUTATIONS = [
     ("neighbours outrank the open project",
      "Notes from other projects score 10x. If the gate stays green, it is not "
@@ -221,6 +263,11 @@ MUTATIONS = [
      "The handbook layer disappears. The gate must notice that a whole source "
      "of answers went missing.",
      {"layers": []}),
+    # The per-layer cap is NOT mutated here, deliberately. `run_layer_cap` is
+    # already a with/without comparison — it runs the same query capped and
+    # uncapped and requires the two to differ — so it carries its own mutation.
+    # Adding it to this list only proved that `run_gate` does not contain it,
+    # which is true and says nothing about the cap.
     ("long notes truncated instead of sliced",
      "Slicing is switched off and notes are cut at 1500 characters — the state "
      "this project came from. Anything written late in a long note becomes "
@@ -276,6 +323,9 @@ def main():
           f"{projects} project(s) plus configured layers\n")
 
     failures = run_gate(ml, idx, verbose=verbose, cfg=cfgmod)
+    failures += run_layer_cap()
+    cfgmod, ml = fx.setup()
+    fx.fresh_index(ml)
     failures += run_budget(ml, cfgmod)
 
     print()

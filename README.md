@@ -96,10 +96,16 @@ mistake happened anyway and deleted five scripts and five hook registrations.
 
 So the rule is narrow: **a practice that matters is a gate, or it is a wish.**
 
-Five of them ship: refuse a new file with nothing calling it; refuse a
+Six of them ship: refuse a new file with nothing calling it; refuse a
 destructive shell command; refuse a write into someone else's project; refuse an
-edit that bloats an always-loaded instruction file; and save the memory directory
-to git on its own, refusing to save secrets.
+edit that bloats an always-loaded instruction file; redact credential-shaped
+values out of every tool result before they reach the conversation; and save the
+memory directory to git on its own, refusing to save secrets.
+
+The redaction one exists because a third-party tool returned an access token
+inside a *successful* response, and it ended up in the transcript **15 times**
+before anyone noticed. Filtering that one tool was the wrong fix: it would have
+kept leaking the same way from somewhere else.
 
 Details in [`method/README.md`](method/README.md).
 
@@ -112,7 +118,7 @@ make            # all of it
 python engine/tests/test_memory.py             # 36 checks on the memory guards
 python engine/tests/golden_recall.py           # ranking + performance gate
 python engine/tests/golden_recall.py --mutate  # break it on purpose
-python method/gates/tests/test_gates.py        # 25 checks on the gates + mutation
+python method/gates/tests/test_gates.py        # 36 checks on the gates + mutation
 ```
 
 No pytest, no dependencies, and they run against synthetic corpora — never your
