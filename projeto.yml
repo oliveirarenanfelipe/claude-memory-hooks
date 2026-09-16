@@ -1,0 +1,27 @@
+# projeto.yml — o contrato de fundacao deste projeto.
+#
+# Gerado VAZIO por `Fundacao/maquina/consertar.py`. Isto e deliberado: o gate
+# `fundacao_na_porta.py` vai RECUSAR a primeira escrita de codigo aqui ate os
+# campos serem respondidos, e e assim que ele cobra a pergunta em vez de
+# aceitar uma resposta inventada por maquina.
+#
+# O detalhe de cada campo esta em `Projeto/_shared/projeto.yml.modelo`.
+
+nome: claude-memory-hooks
+owner:
+# experimental | producao | pausado | aposentado
+lifecycle:
+# Uma frase: o que este projeto constroi, e para quem.
+o_que_e:
+# nenhum | publica | mensagem | cobranca | deploy
+efeito_no_mundo:
+# nao | sim
+dado_de_cliente:
+# local | github_actions | cloudflare | railway | vps | hostgator | aws | outro
+onde_roda:
+# nenhum | manual | automatizado
+teste:
+# nao | sim
+ci:
+# onde mora a fila de trabalho aberto
+trabalho_aberto:

@@ -1,0 +1,20 @@
+# gitleaks — trava de secret. Estende as regras padrao.
+# Escrito por `Fundacao/maquina/consertar.py`, no formato que a casa ja usa
+# desde 03/07/2026. Dado ou falso positivo especifico: acrescentar por caso.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendor/build/lock — nunca secret nosso"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)\.next/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+  '''(^|/)out/''',
+  '''package-lock\.json$''',
+  '''pnpm-lock\.yaml$''',
+  '''yarn\.lock$''',
+  '''.*\.min\.(js|css)$''',
+]
