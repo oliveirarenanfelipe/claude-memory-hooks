@@ -130,6 +130,24 @@ out, rc = run_hook("prompt_memory.py", {"prompt": "hi", "cwd": fx.API})
 check("a prompt below min_prompt_len injects nothing", out == "", out[:80])
 
 # ---------------------------------------------------------------------------
+print("\n== top-k is enforced by the cut itself, not by the char cap ==")
+# The block above cannot catch an off-by-one in the cut: the character cap in
+# prompt_memory.py trims the context before a sixth block would show. Measured:
+# with `>=` turned into `>`, the cut returned 6 items and that block stayed green.
+# So the cut is called directly, on a small hand-made list, and compared with a
+# hand-written answer. Eight hits, already sorted by score, over seven files —
+# "a.md" appears twice. No layer, so no per-layer cap applies.
+hits = [(9.0, {"file": "a.md"}), (8.0, {"file": "a.md"}),
+        (7.0, {"file": "b.md"}), (6.0, {"file": "c.md"}),
+        (5.0, {"file": "d.md"}), (4.0, {"file": "e.md"}),
+        (3.0, {"file": "f.md"}), (2.0, {"file": "g.md"})]
+got5 = [m["file"] for _, m in ml._top_k_distinct(hits, 5)]
+check("top_k=5 returns exactly 5 distinct files, best first",
+      got5 == ["a.md", "b.md", "c.md", "d.md", "e.md"], f"got={got5}")
+got2 = [m["file"] for _, m in ml._top_k_distinct(hits, 2)]
+check("top_k=2 returns exactly 2", got2 == ["a.md", "b.md"], f"got={got2}")
+
+# ---------------------------------------------------------------------------
 print("\n== no index and no cache: fall back, never crash ==")
 saved = {}
 for p in (ml.CACHE_PATH, ml.INDEX_PATH):
