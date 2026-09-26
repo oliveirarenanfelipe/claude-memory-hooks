@@ -1,0 +1,178 @@
+{
+ "H1": {
+  "A": "karpathy_2",
+  "B": "house_2",
+  "C": "karpathy_1",
+  "D": "none_1",
+  "E": "none_2",
+  "F": "house_1"
+ },
+ "H2": {
+  "A": "house_1",
+  "B": "none_2",
+  "C": "none_1",
+  "D": "karpathy_2",
+  "E": "house_2",
+  "F": "karpathy_1"
+ },
+ "H3": {
+  "A": "karpathy_1",
+  "B": "house_2",
+  "C": "none_2",
+  "D": "karpathy_2",
+  "E": "house_1",
+  "F": "none_1"
+ },
+ "H4": {
+  "A": "house_1",
+  "B": "none_1",
+  "C": "house_2",
+  "D": "none_2",
+  "E": "karpathy_2",
+  "F": "karpathy_1"
+ },
+ "H5": {
+  "A": "karpathy_2",
+  "B": "karpathy_1",
+  "C": "house_2",
+  "D": "house_1",
+  "E": "none_2",
+  "F": "none_1"
+ },
+ "H6": {
+  "A": "karpathy_2",
+  "B": "house_2",
+  "C": "none_1",
+  "D": "karpathy_1",
+  "E": "none_2",
+  "F": "house_1"
+ },
+ "H7": {
+  "A": "none_2",
+  "B": "house_1",
+  "C": "karpathy_1",
+  "D": "none_1",
+  "E": "karpathy_2",
+  "F": "house_2"
+ },
+ "H8": {
+  "A": "karpathy_2",
+  "B": "none_1",
+  "C": "karpathy_1",
+  "D": "none_2",
+  "E": "house_2",
+  "F": "house_1"
+ },
+ "H9": {
+  "A": "house_1",
+  "B": "none_1",
+  "C": "none_2",
+  "D": "karpathy_1",
+  "E": "house_2",
+  "F": "karpathy_2"
+ },
+ "H10": {
+  "A": "karpathy_1",
+  "B": "none_1",
+  "C": "none_2",
+  "D": "house_1",
+  "E": "karpathy_2",
+  "F": "house_2"
+ },
+ "H11": {
+  "A": "none_2",
+  "B": "house_2",
+  "C": "house_1",
+  "D": "karpathy_2",
+  "E": "karpathy_1",
+  "F": "none_1"
+ },
+ "H12": {
+  "A": "house_2",
+  "B": "karpathy_1",
+  "C": "none_2",
+  "D": "house_1",
+  "E": "karpathy_2",
+  "F": "none_1"
+ },
+ "H13": {
+  "A": "none_2",
+  "B": "none_1",
+  "C": "karpathy_1",
+  "D": "house_1",
+  "E": "house_2",
+  "F": "karpathy_2"
+ },
+ "H14": {
+  "A": "karpathy_2",
+  "B": "none_2",
+  "C": "karpathy_1",
+  "D": "house_2",
+  "E": "none_1",
+  "F": "house_1"
+ },
+ "H15": {
+  "A": "none_1",
+  "B": "karpathy_2",
+  "C": "house_1",
+  "D": "karpathy_1",
+  "E": "house_2",
+  "F": "none_2"
+ },
+ "H16": {
+  "A": "karpathy_2",
+  "B": "none_1",
+  "C": "house_1",
+  "D": "none_2",
+  "E": "karpathy_1",
+  "F": "house_2"
+ },
+ "H17": {
+  "A": "karpathy_1",
+  "B": "none_2",
+  "C": "house_2",
+  "D": "none_1",
+  "E": "karpathy_2",
+  "F": "house_1"
+ },
+ "H18": {
+  "A": "none_2",
+  "B": "karpathy_2",
+  "C": "house_1",
+  "D": "none_1",
+  "E": "house_2",
+  "F": "karpathy_1"
+ },
+ "H19": {
+  "A": "karpathy_1",
+  "B": "house_1",
+  "C": "none_1",
+  "D": "karpathy_2",
+  "E": "house_2",
+  "F": "none_2"
+ },
+ "H20": {
+  "A": "house_1",
+  "B": "karpathy_2",
+  "C": "none_2",
+  "D": "none_1",
+  "E": "karpathy_1",
+  "F": "house_2"
+ },
+ "H21": {
+  "A": "none_2",
+  "B": "house_2",
+  "C": "karpathy_2",
+  "D": "karpathy_1",
+  "E": "house_1",
+  "F": "none_1"
+ },
+ "H22": {
+  "A": "karpathy_1",
+  "B": "karpathy_2",
+  "C": "none_1",
+  "D": "house_1",
+  "E": "none_2",
+  "F": "house_2"
+ }
+}

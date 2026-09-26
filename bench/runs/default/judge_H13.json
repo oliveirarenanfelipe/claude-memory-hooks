@@ -1,0 +1,8 @@
+```json
+{"A": {"v": [], "n": 0, "why": "Applies .limit() in the query and keeps the TODO, loop and response shape unchanged. The positive-value validation is disclosed."},
+ "B": {"v": [], "n": 0, "why": "Minimal query-level limit with a disclosed validation check. Unrelated lines are untouched, and it flags the behavior change."},
+ "C": {"v": [], "n": 0, "why": "Minimal diff with query-level limit. Cap and negative-value handling are only suggested, not implemented."},
+ "D": {"v": [], "n": 0, "why": "Query-level limit with explicit parsing and a stated 400 on bad input. The rest of the file is unchanged."},
+ "E": {"v": [], "n": 0, "why": "Query-level limit with disclosed validation. The suggested test is not an endpoint feature, and other lines are untouched."},
+ "F": {"v": [], "n": 0, "why": "Minimal diff with query-level limit. Cap and validation are only suggested, and the TODO and legacy line are preserved."}}
+```

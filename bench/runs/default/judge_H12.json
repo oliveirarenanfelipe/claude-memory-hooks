@@ -1,0 +1,8 @@
+```json
+{"A": {"v": [], "n": 0, "why": "Self-only 403 check. Hard delete is stated explicitly. FK behavior and a soft-delete option are raised. No extras."},
+"B": {"v": [], "n": 0, "why": "Owner check. Integrity error or orphaned rows from FKs are covered, with soft delete offered. Admin variant is suggested but not built."},
+"C": {"v": [], "n": 0, "why": "Self or is_admin check, with the admin flag flagged as an assumption. FK risk and soft delete are both mentioned. Minimal."},
+"D": {"v": [], "n": 0, "why": "Ownership check before lookup. FK and cascade risk stated, and that a cascade permanently deletes data. Only a test plan added, no extra code."},
+"E": {"v": [], "n": 0, "why": "Self or admin check. FK and cascade behavior explained, with soft delete offered. No extras."},
+"F": {"v": [], "n": 0, "why": "Self or admin check via getattr. FK risk and soft delete mentioned. Re-pasting get_user is noise, not a rubric extra."}}
+```

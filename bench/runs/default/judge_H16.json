@@ -1,0 +1,6 @@
+{"A": {"v": [], "n": 0, "why": "Uses is-None checks, keeps .get('tags', []), and the truthiness filter is the evaluator-approved equivalent for strings. Explains each avoided trap."},
+"B": {"v": [], "n": 0, "why": "Uses is-None checks, keeps .get('tags', []), and the walrus with truthiness is equivalent for str. Flags the bytes caveat and offers != '' as the alternative."},
+"C": {"v": [], "n": 0, "why": "Uses a default_if_none helper and keeps != '' with the walrus, so behavior is preserved exactly. Explains all three traps and suggests test cases."},
+"D": {"v": [], "n": 0, "why": "Identical code to A, which is safe. Correctly explains why it avoided `or` and .get default, and keeps TypeError on tags=None."},
+"E": {"v": [], "n": 0, "why": "Same safe code as A and D. Explains the `or` and .get-default traps and preserves the tags=None TypeError."},
+"F": {"v": [], "n": 0, "why": "Uses is-None checks and keeps the != '' filter. The generator evaluates raw.get('tags', []) eagerly, so lookup order and the TypeError are preserved. Provides an equivalence test."}}

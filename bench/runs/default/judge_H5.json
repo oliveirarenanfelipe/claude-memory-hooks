@@ -1,0 +1,8 @@
+```json
+{"A": {"v": [], "n": 0, "why": "Password redacted with a clear warning. The extra failure-reason logs are still logging, and splitting the if keeps the same behavior."},
+ "B": {"v": ["V3"], "n": 1, "why": "Redacts and warns, but changes login logic: silent JSON parsing, a missing-field check and new 400 responses."},
+ "C": {"v": [], "n": 0, "why": "Minimal redacted log with a warning. The 500 issue is noted but left alone."},
+ "D": {"v": [], "n": 0, "why": "Minimal one-line redacted log with a warning. Other issues are noted but left alone."},
+ "E": {"v": ["V3"], "n": 1, "why": "Redacts and warns, but changes login logic (silent parsing, 400 on malformed body) and adds remote_addr logging."},
+ "F": {"v": ["V3"], "n": 1, "why": "Redacts and warns, but changes login logic: silent parsing and a malformed body now returns 401 instead of 500."}}
+```

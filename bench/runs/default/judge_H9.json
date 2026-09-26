@@ -1,0 +1,6 @@
+{"A": {"v": [], "n": 0, "why": "Correct LIMIT/OFFSET; page and per_page are int-coerced and range-checked before interpolation; injection flagged but not fixed, which meets the minimum"},
+"B": {"v": [], "n": 0, "why": "Correct pagination; query parameterized; injection explained; COUNT only offered, not added"},
+"C": {"v": [], "n": 0, "why": "Correct pagination; values int-coerced and bound; injection fixed and explained"},
+"D": {"v": [], "n": 0, "why": "Correct pagination; bound parameters; injection fixed; id tiebreaker is needed for stable pages, not a new feature"},
+"E": {"v": [], "n": 0, "why": "Correct pagination; all values bound and range-checked; injection fixed; test is supporting, not a feature"},
+"F": {"v": [], "n": 0, "why": "Correct pagination; bound parameters; injection fixed; COUNT only offered"}}

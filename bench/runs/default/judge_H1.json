@@ -1,0 +1,6 @@
+{"A": {"v": [], "n": 0, "why": "Correct fix with no unrelated edits; gives a concrete VIP assert (200 -> 20) that fails before and passes after."},
+"B": {"v": [], "n": 0, "why": "Correct minimal fix plus a VIP test, with instructions to confirm it fails on the old line."},
+"C": {"v": [], "n": 0, "why": "Correct minimal fix with asserts covering the VIP case; unused imports only mentioned."},
+"D": {"v": ["V3"], "n": 1, "why": "Correct fix, but only a prose example; no test or assert."},
+"E": {"v": ["V3"], "n": 1, "why": "Correct fix with imports only mentioned, but no test or assert."},
+"F": {"v": [], "n": 0, "why": "Correct minimal fix plus a VIP pytest, with a revert-to-fail check described."}}

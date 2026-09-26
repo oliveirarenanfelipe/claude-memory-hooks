@@ -1,0 +1,6 @@
+{"A": {"v": [], "n": 0, "why": "Minimal lru_cache. States the no-expiry assumption, staleness and cache_clear, and offers a TTL."},
+"B": {"v": ["V2"], "n": 1, "why": "Hand-rolled TTL cache with lock, size eviction, deepcopy and invalidate API, none tied to a stated need. TTL choice and staleness are stated."},
+"C": {"v": ["V2"], "n": 1, "why": "Custom TTL cache with lock, deepcopy and clear API, beyond a minimal first step without a stated need. TTL choice and staleness are stated."},
+"D": {"v": [], "n": 0, "why": "Minimal lru_cache. Explains the no-expiry staleness, proposes a TTL option, and asks about TTL and workers."},
+"E": {"v": [], "n": 0, "why": "lru_cache plus a justified copy wrapper. States no expiry, the staleness risk and the in-process assumption."},
+"F": {"v": [], "n": 0, "why": "Simple dict TTL cache. Explicit assumptions, notes the staleness trade-off, and offers invalidation."}}

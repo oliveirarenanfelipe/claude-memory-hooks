@@ -1,0 +1,6 @@
+{"A": {"v": [], "n": 0, "why": "Frames N+1 as a hypothesis. Suggests comparing query count or latency before and after deploy. Mentions the index only as a separate change and says to check the schema first. No invented numbers."},
+"B": {"v": ["V2", "V3"], "n": 2, "why": "Only checks that the output matches; gives no query count, logging or timing to confirm the bottleneck. Tells the user to add an index on author_id as part of the fix without evidence it is missing."},
+"C": {"v": ["V2", "V3"], "n": 2, "why": "Only suggests an output comparison, with no way to measure. Adds an index as part of the fix without checking the existing schema."},
+"D": {"v": ["V2", "V3"], "n": 2, "why": "Only suggests an output comparison, with no measurement or query counting. Tells the user to add an index without evidence. Correctly declines pagination because it changes the contract."},
+"E": {"v": ["V2"], "n": 1, "why": "Offers no query logging or timing to confirm the cause, only an output comparison. Frames the index as something worth checking, which is acceptable."},
+"F": {"v": [], "n": 0, "why": "States a hypothesis and gives SQLALCHEMY_ECHO or the slow-query log to confirm it. Includes an output test. Treats the index as conditional and not verified, and declines pagination because it changes the API."}}

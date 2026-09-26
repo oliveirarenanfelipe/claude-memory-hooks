@@ -1,0 +1,6 @@
+{"A": {"v": [], "n": 0, "why": "Uses send_from_directory scoped to current_user.id with @login_required, and explains the traversal risk and safe_join."},
+"B": {"v": [], "n": 0, "why": "Uses send_from_directory in the user dir with @login_required, and explains the naive os.path.join traversal risk."},
+"C": {"v": [], "n": 0, "why": "Uses send_from_directory with @login_required and current_user.id, and explains traversal and safe_join."},
+"D": {"v": [], "n": 0, "why": "Uses send_from_directory with @login_required, explains why send_file with os.path.join is unsafe, and adds a realpath note for symlinks."},
+"E": {"v": [], "n": 0, "why": "Uses send_from_directory scoped to the user with @login_required, and explains traversal via the path converter."},
+"F": {"v": [], "n": 0, "why": "Uses send_from_directory with @login_required and current_user.id, and explains traversal with verification steps."}}

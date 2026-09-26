@@ -1,0 +1,4 @@
+# Third-party rules are downloaded by the user, not redistributed here (see README).
+rules/karpathy.md
+runs/*/_empty/
+runs/*/*.log

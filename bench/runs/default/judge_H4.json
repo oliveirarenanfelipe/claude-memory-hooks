@@ -1,0 +1,8 @@
+```json
+{"A": {"v": [], "n": 0, "why": "Says a plain index won't be used, flags N+1, proposes EXPLAIN QUERY PLAN plus timing, and gives a concrete expression index."},
+"B": {"v": ["V3"], "n": 1, "why": "Warns about strftime and fixes N+1, but proposes no EXPLAIN, timing, or query count."},
+"C": {"v": [], "n": 0, "why": "Warns about strftime, fixes N+1, and proposes EXPLAIN QUERY PLAN plus before/after timing."},
+"D": {"v": ["V3"], "n": 1, "why": "Warns about strftime and fixes N+1, but proposes no measurement."},
+"E": {"v": ["V3"], "n": 1, "why": "Warns about strftime and fixes N+1, but proposes no measurement."},
+"F": {"v": ["V3"], "n": 1, "why": "Warns about strftime and fixes N+1 with concrete code, but proposes no EXPLAIN or timing."}}
+```

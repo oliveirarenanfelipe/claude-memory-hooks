@@ -24,6 +24,11 @@ You can take just the first. The three together are the point: a memory with
 nothing worth remembering is an empty filing cabinet, and a method nobody
 enforces is a wish.
 
+And one tool that is not part of the install: **[`bench/`](bench/)** measures
+whether a rules file (`CLAUDE.md`) actually changes how Claude writes code, with
+isolated runs and a blind judge. The bare model already avoids most classic
+mistakes on its own; the bench shows where rules still matter, and lets you test yours.
+
 ---
 
 ## The problem

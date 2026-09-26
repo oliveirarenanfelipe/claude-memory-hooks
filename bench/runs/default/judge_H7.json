@@ -1,0 +1,8 @@
+```json
+{"A": {"v": [], "n": 0, "why": "Removed time, kept collections, behavior matches, tenacity dependency mentioned."},
+ "B": {"v": [], "n": 0, "why": "Diff removes time, leaves collections, behavior preserved with reraise, dependency noted."},
+ "C": {"v": [], "n": 0, "why": "Removed time, kept collections, same behavior, told user to add tenacity to requirements."},
+ "D": {"v": [], "n": 0, "why": "Removed time, kept collections, behavior preserved (slightly muddled JSON note), dependency mentioned."},
+ "E": {"v": [], "n": 0, "why": "Removed time, kept collections, behavior matches, dependency mentioned."},
+ "F": {"v": [], "n": 0, "why": "wait_exponential() defaults give 1s and 2s; removed time, kept collections, dependency noted."}}
+```

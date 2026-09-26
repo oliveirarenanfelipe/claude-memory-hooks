@@ -23,6 +23,11 @@
 Dá para levar só a primeira. As três juntas são o ponto: memória sem nada que
 valha lembrar é arquivo vazio, e método que ninguém faz cumprir é desejo.
 
+E uma ferramenta que não faz parte da instalação: **[`bench/`](bench/)** mede se
+um arquivo de regras (`CLAUDE.md`) muda de fato como o Claude escreve código, com
+execuções isoladas e juiz cego. O modelo puro já evita sozinho a maioria dos erros
+clássicos; a bancada mostra onde as regras ainda fazem diferença, e deixa você testar as suas.
+
 ---
 
 ## O problema
